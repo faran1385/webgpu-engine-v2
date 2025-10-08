@@ -1,59 +1,125 @@
-import GPUBaseBindgroup from "./GPUBaseBindgroup.ts";
-import GPUBaseBindgroupLayout from "./GPUBaseBindgroupLayout.ts";
 import type {
     EntryResource,
-    GPUBaseBindgroupLayoutEntries,
     GPUBindGroupManagerCreateEntries
 } from "./bindgroup.types.ts";
 import GPURawBuffer from "../buffer/GPURawBuffer.ts";
 import {GPURawTexture} from "../texture/GPURawTexture.ts";
 import {fnv1aHash} from "../../../helpers/globalHelpler.ts";
+import {getLayoutEntries, hashBindgroupLayout} from "../../../helpers/bindgroupHelper.ts";
+import GPURawBindgroupLayout from "./GPURawBindgroupLayout.ts";
+import {TrackedResource} from "../../core/tracking/TrackedResources.ts";
+import GPURawBindgroup from "./GPURawBindgroup.ts";
 
 
 export default class GPUBindgroupManager {
     private static _instance: GPUBindgroupManager;
-    private bindGroupCache: Map<string, GPUBaseBindgroup> = new Map();
-    private bindGroupLayoutCache: Map<string, GPUBaseBindgroupLayout> = new Map();
+    private bindGroupCache: Map<string, {
+        wrapperClasses: Map<string, GPURawBindgroup>,
+        tracker: TrackedResource
+    }> = new Map();
+    private bindGroupLayoutCache: Map<string, {
+        wrapperClasses: Map<string, GPURawBindgroupLayout>,
+        tracker: TrackedResource
+    }> = new Map();
 
-    private constructor() {}
+    private constructor() {
+    }
 
-    public create(device: GPUDevice, T: GPUBindGroupManagerCreateEntries) {
-        const layoutEntries = this.getLayoutEntries(T.resources)
-        const layoutHash = this.hashBindgroupLayout(layoutEntries);
-        let layout: GPUBaseBindgroupLayout;
+    layoutHashExists(hash: string) {
+        return this.bindGroupLayoutCache.has(hash);
+    }
 
-        if (this.bindGroupLayoutCache.has(layoutHash)) {
-            layout = this.bindGroupLayoutCache.get(layoutHash)!;
-        } else {
-            layout = new GPUBaseBindgroupLayout(device, {
-                label: T.layoutLabel,
-                entries: layoutEntries,
-                hash: layoutHash
-            })
-            this.bindGroupLayoutCache.set(layoutHash, layout);
+    bindgroupHashExists(hash: string) {
+        return this.bindGroupCache.has(hash);
+    }
+
+    createLayout(T: GPUBindGroupManagerCreateEntries) {
+
+        const layoutEntries = getLayoutEntries(T.resources)
+        const hash = hashBindgroupLayout(layoutEntries);
+        const cachedData = this.bindGroupLayoutCache.get(hash);
+
+        if (cachedData && cachedData.wrapperClasses.size > 0) {
+            const clone = Array.from(cachedData.wrapperClasses)[0][1].clone();
+            cachedData.wrapperClasses.set(clone.getNanoID(), clone);
+            return clone;
         }
+        const tracker = new TrackedResource(hash);
+
+        const layout = new GPURawBindgroupLayout({
+            isCopy: false,
+            entries: getLayoutEntries(T.resources),
+            label: T.layoutLabel,
+            tracker
+        });
+
+        this.bindGroupLayoutCache.set(hash, {
+            wrapperClasses: new Map([[layout.getNanoID(), layout]]),
+            tracker
+        });
+        return layout;
+    }
+
+    removeLayout(hash: string, nanoId: string) {
+        this.removeFromCache(hash, nanoId, "bindGroupLayoutCache")
+    }
+
+    removeBindgroup(hash: string, nanoId: string) {
+        this.removeFromCache(hash, nanoId, "bindGroupCache")
+    }
+
+    private removeFromCache(hash: string, nanoId: string, cacheName: "bindGroupLayoutCache" | "bindGroupCache") {
+        const map = this[cacheName].get(hash);
+        if (map) {
+            map.wrapperClasses.delete(nanoId)
+            if (map.wrapperClasses.size <= 0) this[cacheName].delete(hash)
+        }
+    }
+
+    public createBindgroup(T: GPUBindGroupManagerCreateEntries) {
+
+        const layout: GPURawBindgroupLayout = this.createLayout(T);
 
         const bindgroupEntries = this.getBindgroupEntries(layout, T.resources)
-        const bindgroupHash = fnv1aHash(`${layoutHash}${bindgroupEntries.entriesHash}`)
-        let bindgroup: GPUBaseBindgroup;
+        const bindgroupHash = fnv1aHash(`${layout.getTracker().getHash()}${bindgroupEntries.entriesHash}`)
 
-        if (this.bindGroupCache.has(bindgroupHash)) {
-            bindgroup = this.bindGroupCache.get(bindgroupHash)!;
-        } else {
-            bindgroup = new GPUBaseBindgroup(device, {
-                label: T.bindgroupLabel,
-                entries: bindgroupEntries.entries,
-                hash: bindgroupHash,
-                boundResources: bindgroupEntries.boundResources,
-                layout
-            })
-            this.bindGroupCache.set(bindgroupHash, bindgroup);
+        const cachedData = this.bindGroupCache.get(bindgroupHash);
+
+        if (cachedData && cachedData.wrapperClasses.size > 0) {
+            const clone = Array.from(cachedData.wrapperClasses)[0][1].clone();
+            cachedData.wrapperClasses.set(clone.getNanoID(), clone);
+
+            this.setBindgroupRelations(clone, layout)
+            return clone;
         }
 
+        const tracker = new TrackedResource(bindgroupHash);
+
+
+        const bindgroup = new GPURawBindgroup({
+            label: T.bindgroupLabel,
+            entries: bindgroupEntries.entries,
+            boundResources: bindgroupEntries.boundResources,
+            layout,
+            tracker,
+            isCopy: false
+        })
+
+
+        this.bindGroupCache.set(bindgroupHash, {
+            wrapperClasses: new Map([[bindgroup.getNanoID(), bindgroup]]),
+            tracker
+        });
+        this.setBindgroupRelations(bindgroup, layout)
         return bindgroup;
     }
 
-    private getBindgroupEntries(layout: GPUBaseBindgroupLayout, resources: GPUBindGroupManagerCreateEntries["resources"]) {
+    private setBindgroupRelations(group: GPURawBindgroup, layout: GPURawBindgroupLayout) {
+        group.getLayout().getTracker().addDependency(group.getTracker());
+        group.getTracker().addDependent(layout.getTracker())
+    }
+
+    private getBindgroupEntries(layout: GPURawBindgroupLayout, resources: GPUBindGroupManagerCreateEntries["resources"]) {
         let entriesHash = ``;
         const entries: GPUBindGroupEntry[] = []
         const boundResources: Record<string, EntryResource> = {}
@@ -92,61 +158,6 @@ export default class GPUBindgroupManager {
         }
     }
 
-    private hashBindgroupLayout = (entries: GPUBaseBindgroupLayoutEntries["entries"]) => {
-        let hash = "";
-        for (const key in entries) {
-            const entry = entries[key];
-
-            if ("texture" in entry) {
-                hash += `${entry.binding}${entry.visibility}${entry.texture?.sampleType}${entry.texture?.multisampled}${entry.texture?.viewDimension}`
-            } else if ("buffer" in entry) {
-                hash += `${entry.binding}${entry.visibility}${entry.buffer?.type}`
-            } else {
-                hash += `${entry.binding}${entry.visibility}${entry.sampler?.type}`
-            }
-        }
-        return hash
-    }
-
-    private getLayoutEntries(resources: GPUBindGroupManagerCreateEntries["resources"]) {
-        const entries: Record<string, GPUBindGroupLayoutEntry> = {}
-
-        let i = 0;
-        for (const key in resources) {
-            const {resource, visibility} = resources[key];
-
-            if (resource instanceof GPURawBuffer) {
-                entries[key] = {
-                    buffer: {
-                        type: resource.bindType
-                    },
-                    visibility,
-                    binding: i
-                }
-            } else if (resource instanceof GPURawTexture) {
-                entries[key] = {
-                    texture: {
-                        sampleType: resource.getSampleType(),
-                        viewDimension: resource.getViewDimension(),
-                        multisampled: resource.getSampleCount() > 1
-                    },
-                    visibility,
-                    binding: i
-                }
-            } else {
-                entries[key] = {
-                    sampler: {
-                        type: resource.samplerType
-                    },
-                    visibility,
-                    binding: i
-                }
-            }
-            i++
-        }
-
-        return entries
-    }
 
     public static init() {
         if (!this._instance) {

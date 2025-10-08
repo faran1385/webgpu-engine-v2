@@ -20,7 +20,8 @@ export default class GeometryManager {
 
     create(T: {
         buffers: GeometryEntries["buffers"],
-        primitive?: GeometryEntries["primitive"]
+        primitive?: GeometryEntries["primitive"],
+        indexBuffer?: GeometryEntries["indexBuffer"],
     }) {
         const sortedBuffers = T.buffers.sort((a, b) => {
             return a.getNanoID().localeCompare(b.getNanoID());

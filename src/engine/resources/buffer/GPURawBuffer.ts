@@ -1,4 +1,5 @@
 import {getNanoId} from "../../../helpers/globalHelpler.ts";
+import DeviceManager from "../../core/DeviceManager.ts";
 
 export default class GPURawBuffer {
     private nanoID!: string;
@@ -8,7 +9,9 @@ export default class GPURawBuffer {
     private size!: number;
     private label!: string;
 
-    constructor(device: GPUDevice, size: number, usage: number, label: string) {
+    constructor(size: number, usage: number, label: string) {
+        const device=DeviceManager.instance.device
+
         this.usage = usage;
         this.size = size;
         this.label = label;

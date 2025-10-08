@@ -1,14 +1,15 @@
 import {getNanoId} from "../../../helpers/globalHelpler.ts";
 import {Blending, type GPURawPipelineEntries} from "./pipeline.types.ts";
 import type GPURawPipelineLayout from "./GPURawPipelineLayout.ts";
-import {getPipelineHash} from "../../../helpers/pipelineHelper.ts";
-import type GPURenderPipelineManager from "./GPURenderPipelineManager.ts";
+import DeviceManager from "../../core/DeviceManager.ts";
+import type {TrackedResource} from "../../core/tracking/TrackedResources.ts";
+import GPURenderPipelineManager from "./GPURenderPipelineManager.ts";
+import BaseResourceNeeds from "../BaseResourceNeeds.ts";
 
-export default class GPURawRenderPipeline {
-    private nanoID!: string;
-    private hash: string;
+export default class GPURawRenderPipeline extends BaseResourceNeeds{
+    protected nanoID!: string;
     private label?: string;
-
+    protected tracker: TrackedResource;
     vertexSetting: GPURawPipelineEntries["vertex"]
 
     fragmentSetting: GPURawPipelineEntries["fragment"];
@@ -21,7 +22,8 @@ export default class GPURawRenderPipeline {
     depthStencil?: GPURawPipelineEntries["depthStencil"]
     private gpuPipeline!: GPURenderPipeline
 
-    constructor(device: GPUDevice, T: GPURawPipelineEntries) {
+    constructor(T: GPURawPipelineEntries) {
+        super();
         this.layout = T.layout;
         this.nanoID = getNanoId();
         this.vertexSetting = {
@@ -38,7 +40,7 @@ export default class GPURawRenderPipeline {
             targets: T.fragment.targets,
             constants: T.fragment.constants ?? {},
         } : undefined
-        this.hash = T.hash
+        this.tracker = T.tracker
         this.primitive = {
             cullMode: T.primitive?.cullMode ?? "none",
             stripIndexFormat: T.primitive?.stripIndexFormat,
@@ -87,28 +89,58 @@ export default class GPURawRenderPipeline {
                 passOp: 'keep',
             },
         } : undefined;
-
-        this.createPipeline(device);
-    }
-
-    rebuild(device: GPUDevice, pipelineManager: GPURenderPipelineManager) {
-        const newHash = getPipelineHash({
-            primitive: this.primitive,
-            depthStencil: this.depthStencil,
-            vertex: this.vertexSetting,
-            fragment: this.fragmentSetting,
-            multiSample: this.multiSample,
-        }, this.layout.getHash())
-
-        if (this.hash !== newHash) {
-            this.createPipeline(device)
-            pipelineManager.removePipeline(this.hash);
-            this.hash = newHash;
+        if (T.isCopy) {
+            this.gpuPipeline = T.gpuPipeline;
+        } else {
+            this.createPipeline();
         }
     }
 
+    getTracker() {
+        return this.tracker;
+    }
 
-    private createPipeline(device: GPUDevice) {
+    clone() {
+        return new GPURawRenderPipeline({
+            vertex: this.vertexSetting,
+            fragment: this.fragmentSetting,
+            multiSample: this.multiSample,
+            gpuPipeline: this.gpuPipeline,
+            pipelineLabel: this.label,
+            tracker: this.tracker,
+            primitive: this.primitive,
+            depthStencil: this.depthStencil,
+            isCopy: true,
+            layout: this.layout
+        })
+    }
+
+    destroyInternal() {
+        const manager = GPURenderPipelineManager.init();
+        manager.removePipeline(this.tracker.getHash(), this.nanoID)
+
+        this.tracker.getDependents().forEach(dependent => {
+            dependent.removeDependency(this.tracker);
+        });
+
+        this.tracker.getDependencies().forEach(dependency => {
+            dependency.removeDependent(this.tracker);
+        });
+
+        this.label =undefined;
+        this.tracker =undefined as any;
+        this.vertexSetting =undefined as any;
+        this.fragmentSetting =undefined;
+        this.primitive =undefined;
+        this.multiSample =undefined;
+        this.depthStencil =undefined;
+        this.gpuPipeline =undefined as any;
+        this.layout =undefined as any;
+    }
+
+    private createPipeline() {
+        const device = DeviceManager.instance.device
+
         const vertex: GPUVertexState = {
             module: this.vertexSetting.module.getModule(),
             entryPoint: this.vertexSetting.entryPoint,
@@ -153,10 +185,6 @@ export default class GPURawRenderPipeline {
 
     getLayout() {
         return this.layout
-    }
-
-    getHash(): string {
-        return this.hash
     }
 
     getFragmentSetting() {

@@ -32,11 +32,10 @@ export default class TextureManager {
         return imageData
     }
 
-    async createTexture(device: GPUDevice, url: string, options: TextureMangerCreateTextureOptions | undefined = undefined) {
+    async createTexture(url: string, options: TextureMangerCreateTextureOptions | undefined = undefined) {
         const loadedData = await this.load(url);
 
         return new GPUImageTexture({
-            device,
             label: options?.label ?? "",
             sampleCount: options?.sampleCount ?? 1,
             height: loadedData.height,
@@ -47,7 +46,7 @@ export default class TextureManager {
         })
     }
 
-    async createTextureArray(device: GPUDevice, urls: string[], options: TextureMangerCreateTextureArrayOptions | undefined = undefined) {
+    async createTextureArray(urls: string[], options: TextureMangerCreateTextureArrayOptions | undefined = undefined) {
         if (urls.length === 0) throw new Error("URLs must not be empty");
 
         const loadedDataArray: ImageData[] = []
@@ -64,7 +63,6 @@ export default class TextureManager {
         if (!allHaveSameSize) throw new Error("All images must have the same size");
 
         return new GPUBaseTextureArray({
-            device,
             label: options?.label ?? "",
             height: height,
             width: width,

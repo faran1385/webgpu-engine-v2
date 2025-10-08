@@ -1,8 +1,14 @@
 import GPURawShaderModule from "./GPURawShaderModule.ts";
-import type {shaderModuleEntries} from "./shaderModule.types.ts";
+import type {ManagerCreateEntries} from "./shaderModule.types.ts";
+import {TrackedResource} from "../../core/tracking/TrackedResources.ts";
+import {fnv1aHash} from "../../../helpers/globalHelpler.ts";
+
 
 export default class ShaderModuleManager {
-    private cache: Map<string, GPURawShaderModule> = new Map();
+    private cache: Map<string, {
+        wrapperClasses: Map<string, GPURawShaderModule>,
+        tracker: TrackedResource
+    }> = new Map();
 
     private static instance: ShaderModuleManager;
 
@@ -17,12 +23,35 @@ export default class ShaderModuleManager {
         return this.instance;
     }
 
-    createShaderModule(device: GPUDevice, T: shaderModuleEntries) {
-        if (this.cache.has(T.code)) return this.cache.get(T.code)!;
+    removeHash(hash: string, nanoId: string) {
+        const map = this.cache.get(hash);
+        if (map) {
+            map.wrapperClasses.delete(nanoId)
+            if (map.wrapperClasses.size <= 0) this.cache.delete(hash)
+        }
+    }
 
-        const module = new GPURawShaderModule(device, T);
+    createShaderModule(T: ManagerCreateEntries) {
+        const hash = fnv1aHash(T.code);
+        const cachedData = this.cache.get(hash);
+        if (cachedData && cachedData.wrapperClasses.size > 0) {
+            const clone = Array.from(cachedData.wrapperClasses)[0][1].clone();
+            cachedData.wrapperClasses.set(clone.getNanoID(), clone);
 
-        this.cache.set(T.code, module)
+            return clone
+        }
+
+        const tracker = new TrackedResource(hash);
+
+        const module = new GPURawShaderModule({
+            ...T,
+            tracker
+        });
+
+        this.cache.set(hash, {
+            wrapperClasses: new Map([[module.getNanoID(), module]]),
+            tracker
+        });
 
         return module;
     }

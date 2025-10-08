@@ -1,5 +1,6 @@
 import {GPURawTexture} from "./GPURawTexture.ts";
 import type {GPUBaseTextureEntries} from "./texture.types.ts";
+import DeviceManager from "../../core/DeviceManager.ts";
 
 export default class GPUBaseTexture extends GPURawTexture {
     private viewDimension: GPUTextureViewDimension = "2d";
@@ -16,12 +17,12 @@ export default class GPUBaseTexture extends GPURawTexture {
         return this.viewDimension;
     }
 
-    resize(device: GPUDevice, width: number, height: number, mipmapCount: number) {
+    resize(width: number, height: number, mipmapCount: number) {
         this.width = width;
         this.height = height;
         this.mipmapCount = mipmapCount;
         this.destroy()
-        this.createTexture(device);
+        this.createTexture();
     }
 
     /**
@@ -30,8 +31,8 @@ export default class GPUBaseTexture extends GPURawTexture {
      * * @param {GPUTexture} texture The texture to generate mipmaps for.
      * @returns {void}
      */
-    generateMipmaps(device: GPUDevice) {
-
+    generateMipmaps() {
+        const device=DeviceManager.instance.device
 
         const texture = this.getTexture();
         const mipLevelCount = this.getMipmapCount();

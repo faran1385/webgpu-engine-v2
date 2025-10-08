@@ -1,33 +1,82 @@
 import {getNanoId} from "../../../helpers/globalHelpler.ts";
 import type GPURawBindgroupLayout from "./GPURawBindgroupLayout.ts";
-import type {EntryResource} from "./bindgroup.types.ts";
+import type {EntryResource, GPURawBindgroupDescriptor} from "./bindgroup.types.ts";
 import GPURawBuffer from "../buffer/GPURawBuffer.ts";
 import {GPURawTexture} from "../texture/GPURawTexture.ts";
+import DeviceManager from "../../core/DeviceManager.ts";
+import type {TrackedResource} from "../../core/tracking/TrackedResources.ts";
+import GPUBindgroupManager from "./GPUBindgroupManager.ts";
+import BaseResourceNeeds from "../BaseResourceNeeds.ts";
 
-export default class GPURawBindgroup {
-    private nanoID!: string;
+export default class GPURawBindgroup extends BaseResourceNeeds {
+    protected nanoID!: string;
     private layout: GPURawBindgroupLayout;
-    private entries: GPUBindGroupEntry[]
-    private hash: string;
+    private entries: GPUBindGroupEntry[];
     private totalBindingNumber: number;
     private label?: string;
     private bindgroup!: GPUBindGroup;
     private boundResources: Record<string, EntryResource>;
+    protected tracker: TrackedResource
 
-    constructor(device: GPUDevice, descriptor: {
-        entries: Iterable<GPUBindGroupEntry>,
-        layout: GPURawBindgroupLayout,
-        label?: string,
-        boundResources:Record<string, EntryResource>
-    }, hash: string) {
-        this.hash = hash;
-        this.totalBindingNumber = Array.from(descriptor.entries).length;
-        this.label = descriptor.label;
-        this.layout = descriptor.layout;
-        this.entries = Array.from(descriptor.entries);
+    constructor(descriptor: GPURawBindgroupDescriptor) {
+        super();
         this.nanoID = getNanoId();
-        this.boundResources = descriptor.boundResources;
-        this.createBindgroup(device);
+
+        if (descriptor.isCopy) {
+            this.totalBindingNumber = descriptor.totalBindingNumber;
+            this.label = descriptor.label;
+            this.layout = descriptor.layout;
+            this.entries = descriptor.entries;
+            this.boundResources = descriptor.boundResources;
+            this.tracker = descriptor.tracker;
+            this.bindgroup = descriptor.bindgroup;
+        } else {
+            this.totalBindingNumber = Array.from(descriptor.entries).length;
+            this.label = descriptor.label;
+            this.layout = descriptor.layout;
+            this.entries = Array.from(descriptor.entries);
+            this.boundResources = descriptor.boundResources;
+            this.tracker = descriptor.tracker;
+            this.createBindgroup();
+        }
+    }
+
+    clone() {
+        return new GPURawBindgroup({
+            isCopy: true,
+            entries: this.entries,
+            totalBindingNumber: this.totalBindingNumber,
+            layout: this.layout,
+            tracker: this.tracker,
+            label: this.label,
+            boundResources: this.boundResources,
+            bindgroup: this.bindgroup
+        })
+    }
+
+    getTracker(): TrackedResource {
+        return this.tracker;
+    }
+
+    destroyInternal() {
+        const manager = GPUBindgroupManager.init();
+        manager.removeBindgroup(this.tracker.getHash(), this.nanoID)
+
+        this.tracker.getDependents().forEach(dependent => {
+            dependent.removeDependency(this.tracker);
+        });
+
+        this.tracker.getDependencies().forEach(dependency => {
+            dependency.removeDependent(this.tracker);
+        });
+
+        this.layout = undefined as any;
+        this.entries = [];
+        this.totalBindingNumber = 0;
+        this.label = undefined;
+        this.bindgroup = undefined as any;
+        this.boundResources = {};
+        this.tracker = undefined as any;
     }
 
     private getBindgroupEntries() {
@@ -61,16 +110,17 @@ export default class GPURawBindgroup {
         return entries
     }
 
-    regroup(device: GPUDevice) {
+    regroup() {
         this.entries = this.getBindgroupEntries();
-        this.createBindgroup(device)
+        this.createBindgroup()
     }
 
-    getResource(name:string){
+    getResource(name: string) {
         return this.boundResources[name];
     }
 
-    private createBindgroup(device: GPUDevice) {
+    private createBindgroup() {
+        const device = DeviceManager.instance.device
         this.bindgroup = device.createBindGroup({
             entries: this.entries,
             label: this.label,
@@ -93,10 +143,6 @@ export default class GPURawBindgroup {
 
     getEntries() {
         return this.entries;
-    }
-
-    getHash() {
-        return this.hash;
     }
 
     getTotalBinding() {

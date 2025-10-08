@@ -1,5 +1,6 @@
 import type {GPUTextureRawEntries} from "./texture.types.ts";
 import {getNanoId} from "../../../helpers/globalHelpler.ts";
+import DeviceManager from "../../core/DeviceManager.ts";
 
 export class GPURawTexture {
     private nanoID!: string;
@@ -17,7 +18,6 @@ export class GPURawTexture {
     private sampleType: GPUTextureSampleType
 
     constructor({
-                    device,
                     label,
                     usage,
                     width,
@@ -39,7 +39,7 @@ export class GPURawTexture {
         this.isTextureArray = depthOrArrayLayers > 1;
         this.sampleType = this.getSampleTypeForFormat(this.format);
 
-        this.createTexture(device)
+        this.createTexture()
     }
 
     private getSampleTypeForFormat(format: GPUTextureFormat): GPUTextureSampleType {
@@ -52,7 +52,7 @@ export class GPURawTexture {
         return "unfilterable-float";
     }
 
-    getSampleType(){
+    getSampleType() {
         return this.sampleType
     }
 
@@ -64,7 +64,9 @@ export class GPURawTexture {
         return this.isTextureArray;
     }
 
-    protected createTexture(device: GPUDevice) {
+    protected createTexture() {
+        const device = DeviceManager.instance.device
+
         this.destroyStatus = false;
         this.gpuTexture = device.createTexture({
             format: this.format,
@@ -98,7 +100,7 @@ export class GPURawTexture {
         }
     }
 
-    getSampleCount(){
+    getSampleCount() {
         return this.sampleCount;
     }
 

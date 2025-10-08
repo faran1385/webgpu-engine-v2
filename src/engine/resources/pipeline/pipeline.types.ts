@@ -2,6 +2,7 @@ import type GPURawBindgroupLayout from "../bindgroup/GPURawBindgroupLayout.ts";
 import type GPURawPipelineLayout from "./GPURawPipelineLayout.ts";
 import type GPURawShaderModule from "../shaderModule/GPURawShaderModule.ts";
 import type GPUVertexBuffer from "../buffer/GPUVertexBuffer.ts";
+import type {TrackedResource} from "../../core/tracking/TrackedResources.ts";
 
 export enum Blending {
     NoBlending = 0b00000000,
@@ -17,6 +18,8 @@ export enum Blending {
 
 
 export type GPURawPipelineEntries = {
+    isCopy: false,
+    pipelineLabel?: string;
     vertex: {
         module: GPURawShaderModule
         entryPoint?: string
@@ -37,12 +40,46 @@ export type GPURawPipelineEntries = {
     layout: GPURawPipelineLayout,
     depthStencil?: GPUDepthStencilState,
     primitive?: GPUPrimitiveState,
-    hash: string
+    tracker: TrackedResource
+} | {
+    isCopy: true,
+    tracker: TrackedResource
+    pipelineLabel?: string;
+    vertex: {
+        module: GPURawShaderModule
+        entryPoint?: string
+        constants?: Record<string, GPUPipelineConstantValue>,
+        buffers: (GPUVertexBuffer)[]
+    },
+    fragment?: {
+        module: GPURawShaderModule
+        entryPoint?: string
+        constants?: Record<string, GPUPipelineConstantValue>,
+        targets: ({
+            blend?: Blending,
+            mask?: number,
+            format: GPUTextureFormat
+        } | null | undefined)[]
+    },
+    layout: GPURawPipelineLayout
+    primitive?: GPUPrimitiveState
+    multiSample?: GPUMultisampleState
+    depthStencil?: GPUDepthStencilState
+    gpuPipeline: GPURenderPipeline
 }
+
+
 export type GPURawPipelineLayoutEntries = {
     label?: string
     bindgroupLayouts: GPURawBindgroupLayout[],
-    hash: string
+    isCopy: false
+    tracker: TrackedResource
+} | {
+    isCopy: true
+    bindgroupLayouts: GPURawBindgroupLayout[]
+    pipelineLayout: GPUPipelineLayout;
+    label?: string,
+    tracker: TrackedResource
 }
 
 export type ManagerCreateEntries = {

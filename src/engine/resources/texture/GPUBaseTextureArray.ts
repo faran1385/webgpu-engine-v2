@@ -1,5 +1,6 @@
 import {GPURawTexture} from "./GPURawTexture.ts";
 import type {GPUBaseTextureArrayEntries} from "./texture.types.ts";
+import DeviceManager from "../../core/DeviceManager.ts";
 
 export default class GPUBaseTextureArray extends GPURawTexture {
     private viewDimension: GPUTextureViewDimension = "2d-array";
@@ -10,15 +11,17 @@ export default class GPUBaseTextureArray extends GPURawTexture {
             usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT,
             sampleCount: 1
         });
-        this.fillWithData(T.device, T.data)
-        if (T.mipmapCount ?? 1 > 1) this.generateMipmaps(T.device)
+        this.fillWithData(T.data)
+        if (T.mipmapCount ?? 1 > 1) this.generateMipmaps()
     }
 
     getViewDimension() {
         return this.viewDimension;
     }
 
-    fillWithData(device: GPUDevice, dataArray: Uint8ClampedArray[]) {
+    fillWithData(dataArray: Uint8ClampedArray[]) {
+        const device=DeviceManager.instance.device
+
         const texture = this.getTexture();
 
 
@@ -38,11 +41,11 @@ export default class GPUBaseTextureArray extends GPURawTexture {
         }
     }
 
-    resize(device: GPUDevice, width: number, height: number, depthOrArrayLayers: number) {
+    resize( width: number, height: number, depthOrArrayLayers: number) {
         this.width = width;
         this.height = height;
         this.depthOrArrayLayers = depthOrArrayLayers;
-        this.createTexture(device);
+        this.createTexture();
     }
 
     /**
@@ -51,7 +54,8 @@ export default class GPUBaseTextureArray extends GPURawTexture {
      * @param {GPUTexture} texture The texture array to generate mipmaps for.
      * @returns {void}
      */
-    generateMipmaps(device: GPUDevice) {
+    generateMipmaps() {
+        const device=DeviceManager.instance.device
 
         const texture = this.getTexture();
         const mipLevelCount = texture.mipLevelCount;

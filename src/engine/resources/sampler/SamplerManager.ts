@@ -1,4 +1,5 @@
 import GPURawSampler from "./GPURawSampler.ts";
+import DeviceManager from "../../core/DeviceManager.ts";
 
 export default class SamplerManager {
     private cache: Map<string, GPURawSampler> = new Map();
@@ -26,7 +27,8 @@ export default class SamplerManager {
     }
 
 
-    createSampler(device: GPUDevice, options: GPUSamplerDescriptor | undefined = undefined) {
+    createSampler(options: GPUSamplerDescriptor | undefined = undefined) {
+        const device=DeviceManager.instance.device
 
         const descriptor = {
             addressModeU: options?.addressModeU ?? "clamp-to-edge",

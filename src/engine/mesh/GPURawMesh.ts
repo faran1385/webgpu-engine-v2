@@ -1,9 +1,10 @@
-import {getNanoId} from "../../helpers/globalHelpler.ts";
+import {fnv1aHash, getNanoId} from "../../helpers/globalHelpler.ts";
 import type {MeshEntries} from "./mesh.types.ts";
 import type GPURawGeometry from "../geometry/GPURawGeometry.ts";
 import type GPURawMaterial from "../material/GPURawMaterial.ts";
 import type GPURawRenderPipeline from "../resources/pipeline/GPURawRenderPipeline.ts";
 import type GPURawBindgroup from "../resources/bindgroup/GPURawBindgroup.ts";
+import MeshManager from "./MeshManager.ts";
 
 export default class GPURawMesh {
     private nanoID!: string;
@@ -19,15 +20,24 @@ export default class GPURawMesh {
         this.hash = T.hash;
         this.geometry = T.geometry;
         this.material = T.material;
-        this.bindgroup=T.bindgroup;
+        this.bindgroup = T.bindgroup;
         this.pipeline = T.pipeline;
     }
 
-    getPipeline(){
+    updateHash() {
+        const manager = MeshManager.init()
+        manager.updateHash(
+            this.hash,
+            fnv1aHash(`${this.geometry.getHash()}${this.material.getHash()}`),
+            this
+        )
+    }
+
+    getPipeline() {
         return this.pipeline;
     }
 
-    getBindgroup(){
+    getBindgroup() {
         return this.bindgroup;
     }
 

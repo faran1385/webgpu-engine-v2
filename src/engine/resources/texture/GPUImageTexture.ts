@@ -1,5 +1,6 @@
 import GPUBaseTexture from "./GPUBaseTexture.ts";
 import type {GPUImageTextureEntries} from "./texture.types.ts";
+import DeviceManager from "../../core/DeviceManager.ts";
 
 export class GPUImageTexture extends GPUBaseTexture {
     constructor(T: GPUImageTextureEntries) {
@@ -8,11 +9,12 @@ export class GPUImageTexture extends GPUBaseTexture {
             usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_DST
         });
 
-        this.fillWithData(T.device, T.data)
-        if (T.mipmapCount ?? 1 > 1) this.generateMipmaps(T.device)
+        this.fillWithData(T.data)
+        if (T.mipmapCount ?? 1 > 1) this.generateMipmaps()
     }
 
-    fillWithData(device: GPUDevice, data: Uint8ClampedArray) {
+    fillWithData(data: Uint8ClampedArray) {
+        const device=DeviceManager.instance.device
         const texture = this.getTexture();
 
 

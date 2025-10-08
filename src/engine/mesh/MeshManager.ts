@@ -23,18 +23,23 @@ export default class MeshManager {
         return this.instance;
     }
 
+    updateHash(oldHash: string, newHash: string, mesh: GPURawMesh) {
+        this.cache.delete(oldHash)
+        this.cache.set(newHash, mesh);
+    }
+
     create(device: GPUDevice, T: MeshManagerCreateEntries) {
         const meshHash = fnv1aHash(`${T.geometry.getHash()}${T.material.getHash()}`);
 
         if (this.cache.has(meshHash)) return this.cache.get(meshHash)!;
 
-        const bindgroup = this.bindgroupManager.create(device, {
+        const bindgroup = this.bindgroupManager.createBindgroup(device, {
             layoutLabel: T.bindgroupLayoutLabel,
             bindgroupLabel: T.bindgroupLabel,
             resources: T.material.getResources(),
         })
 
-        const pipeline = this.pipelineManager.create(device, {
+        const pipeline = this.pipelineManager.createPipeline(device, {
             layoutLabel: T.pipelineLayoutLabel,
             pipelineLabel: T.pipelineLabel,
             primitive: {
@@ -45,7 +50,7 @@ export default class MeshManager {
             multiSample: T.material.getMultiSample(),
             vertex: {
                 ...T.material.getVertex(),
-                buffers: T.geometry.getBuffers()
+                buffers: T.geometry.getVertexBuffers()
             },
             fragment: T.material.getFragment() ? {
                 ...T.material.getFragment()!,

@@ -1,5 +1,4 @@
 export type GPUTextureRawEntries = {
-    device: GPUDevice,
     label: string,
     depthOrArrayLayers: number,
     width: number,
@@ -11,7 +10,6 @@ export type GPUTextureRawEntries = {
 }
 
 export type GPUBaseTextureEntries = {
-    device: GPUDevice,
     label: string,
     width: number,
     height: number
@@ -23,7 +21,6 @@ export type GPUBaseTextureEntries = {
 
 
 export type GPURenderTargetTextureEntries = {
-    device: GPUDevice,
     label: string,
     width: number,
     height: number
@@ -32,7 +29,6 @@ export type GPURenderTargetTextureEntries = {
 }
 
 export type GPUBaseTextureArrayEntries = {
-    device: GPUDevice,
     label: string,
     width: number,
     height: number
@@ -43,7 +39,6 @@ export type GPUBaseTextureArrayEntries = {
 }
 
 export type GPUImageTextureEntries = {
-    device: GPUDevice,
     label: string,
     width: number,
     height: number
