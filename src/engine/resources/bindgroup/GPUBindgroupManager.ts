@@ -7,19 +7,20 @@ import {GPURawTexture} from "../texture/GPURawTexture.ts";
 import {fnv1aHash} from "../../../helpers/globalHelpler.ts";
 import {getLayoutEntries, hashBindgroupLayout} from "../../../helpers/bindgroupHelper.ts";
 import GPURawBindgroupLayout from "./GPURawBindgroupLayout.ts";
-import {TrackedResource} from "../../core/tracking/TrackedResources.ts";
+import {IndestructiveTrackedResource} from "../../core/tracking/IndestructiveTrackedResources.ts";
 import GPURawBindgroup from "./GPURawBindgroup.ts";
+import type {DestructiveResource} from "../../core/tracking/destructiveTrackedResources.ts";
 
 
 export default class GPUBindgroupManager {
     private static _instance: GPUBindgroupManager;
     private bindGroupCache: Map<string, {
         wrapperClasses: Map<string, GPURawBindgroup>,
-        tracker: TrackedResource
+        tracker: IndestructiveTrackedResource
     }> = new Map();
     private bindGroupLayoutCache: Map<string, {
         wrapperClasses: Map<string, GPURawBindgroupLayout>,
-        tracker: TrackedResource
+        tracker: IndestructiveTrackedResource
     }> = new Map();
 
     private constructor() {
@@ -44,7 +45,7 @@ export default class GPUBindgroupManager {
             cachedData.wrapperClasses.set(clone.getNanoID(), clone);
             return clone;
         }
-        const tracker = new TrackedResource(hash);
+        const tracker = new IndestructiveTrackedResource(hash);
 
         const layout = new GPURawBindgroupLayout({
             isCopy: false,
@@ -85,15 +86,23 @@ export default class GPUBindgroupManager {
 
         const cachedData = this.bindGroupCache.get(bindgroupHash);
 
+        const resources: DestructiveResource[] = []
+
+        for (const entry in T.resources) {
+            if (T.resources[entry].resource instanceof GPURawBuffer || T.resources[entry].resource instanceof GPURawTexture) {
+                resources.push(T.resources[entry].resource)
+            }
+        }
+
         if (cachedData && cachedData.wrapperClasses.size > 0) {
             const clone = Array.from(cachedData.wrapperClasses)[0][1].clone();
             cachedData.wrapperClasses.set(clone.getNanoID(), clone);
 
-            this.setBindgroupRelations(clone, layout)
+            this.setBindgroupRelations(clone, resources, layout)
             return clone;
         }
 
-        const tracker = new TrackedResource(bindgroupHash);
+        const tracker = new IndestructiveTrackedResource(bindgroupHash);
 
 
         const bindgroup = new GPURawBindgroup({
@@ -110,13 +119,17 @@ export default class GPUBindgroupManager {
             wrapperClasses: new Map([[bindgroup.getNanoID(), bindgroup]]),
             tracker
         });
-        this.setBindgroupRelations(bindgroup, layout)
+        this.setBindgroupRelations(bindgroup, resources, layout)
         return bindgroup;
     }
 
-    private setBindgroupRelations(group: GPURawBindgroup, layout: GPURawBindgroupLayout) {
+    private setBindgroupRelations(group: GPURawBindgroup, resources: DestructiveResource[], layout: GPURawBindgroupLayout) {
         group.getLayout().getTracker().addDependency(group.getTracker());
         group.getTracker().addDependent(layout.getTracker())
+        resources.forEach(resource => {
+            resource.getTracker().addDependency(group.getTracker());
+            group.getTracker().addDependent(resource.getTracker())
+        })
     }
 
     private getBindgroupEntries(layout: GPURawBindgroupLayout, resources: GPUBindGroupManagerCreateEntries["resources"]) {

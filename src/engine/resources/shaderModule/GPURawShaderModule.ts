@@ -1,16 +1,16 @@
 import {getNanoId} from "../../../helpers/globalHelpler.ts";
 import type {shaderModuleEntries} from "./shaderModule.types.ts";
 import DeviceManager from "../../core/DeviceManager.ts";
-import {TrackedResource} from "../../core/tracking/TrackedResources.ts";
+import {IndestructiveTrackedResource} from "../../core/tracking/IndestructiveTrackedResources.ts";
 import ShaderModuleManager from "./ShaderModuleManager.ts";
-import BaseResourceNeeds from "../BaseResourceNeeds.ts";
+import {BaseIndestructiveResourceNeeds} from "../BaseResourceNeeds.ts";
 
-export default class GPURawShaderModule extends BaseResourceNeeds {
+export default class GPURawShaderModule extends BaseIndestructiveResourceNeeds {
     protected nanoID!: string;
     private code: string
     private label?: string;
     private module!: GPUShaderModule;
-    protected tracker: TrackedResource
+    protected tracker: IndestructiveTrackedResource
 
 
     constructor(T: shaderModuleEntries) {
@@ -47,7 +47,7 @@ export default class GPURawShaderModule extends BaseResourceNeeds {
         });
 
         this.tracker.getDependencies().forEach(dependency => {
-            dependency.removeDependent(this.tracker);
+            if (dependency instanceof IndestructiveTrackedResource) dependency.removeDependent(this.tracker);
         });
 
         this.tracker = undefined as any;

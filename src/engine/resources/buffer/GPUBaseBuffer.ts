@@ -1,15 +1,15 @@
 import type {TypedArray} from "three";
 import GPURawBuffer from "./GPURawBuffer.ts";
-import type {UpdateDataEntries} from "./buffer.types.ts";
+import type {GPUBaseBufferEntries, UpdateDataEntries} from "./buffer.types.ts";
 import DeviceManager from "../../core/DeviceManager.ts";
 
 export default class GPUBaseBuffer extends GPURawBuffer {
 
 
 
-    constructor(typedArray: TypedArray, usage: number, label: string) {
-        super(typedArray.byteLength, usage, label);
-        this.fillWithData(typedArray)
+    constructor(T:GPUBaseBufferEntries) {
+        super(T);
+        this.fillWithData(T.data)
     }
 
     private fillWithData(typedArray: TypedArray) {

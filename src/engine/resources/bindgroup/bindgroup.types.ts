@@ -4,7 +4,7 @@ import type GPUBaseTextureArray from "../texture/GPUBaseTextureArray.ts";
 import type GPUBaseTexture from "../texture/GPUBaseTexture.ts";
 import type GPURawBindgroupLayout from "./GPURawBindgroupLayout.ts";
 import type GPURawSampler from "../sampler/GPURawSampler.ts";
-import type {TrackedResource} from "../../core/tracking/TrackedResources.ts";
+import type {IndestructiveTrackedResource} from "../../core/tracking/IndestructiveTrackedResources.ts";
 
 export type EntryResource = GPUUniformBuffer | GPUStorageBuffer | GPUBaseTextureArray | GPUBaseTexture | GPURawSampler
 export type GPUBaseBindgroupEntries = {
@@ -36,7 +36,7 @@ export type GPURawBindgroupDescriptor = {
     layout: GPURawBindgroupLayout,
     label?: string,
     boundResources: Record<string, EntryResource>,
-    tracker: TrackedResource
+    tracker: IndestructiveTrackedResource
 } | {
     isCopy: true;
     layout: GPURawBindgroupLayout;
@@ -45,17 +45,17 @@ export type GPURawBindgroupDescriptor = {
     label?: string;
     bindgroup: GPUBindGroup;
     boundResources: Record<string, EntryResource>;
-    tracker: TrackedResource
+    tracker: IndestructiveTrackedResource
 }
 
 export type GPURawBindgroupLayoutDescriptor = {
     label?: string;
     isCopy: false,
-    tracker: TrackedResource,
+    tracker: IndestructiveTrackedResource,
     entries: GPUBaseBindgroupLayoutEntries["entries"]
 } | {
     isCopy: true;
-    tracker: TrackedResource,
+    tracker: IndestructiveTrackedResource,
     layout: GPUBindGroupLayout;
     entries: GPUBindGroupLayoutEntry[]
     totalBindingNumber: number;

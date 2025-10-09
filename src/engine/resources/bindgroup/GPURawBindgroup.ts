@@ -4,11 +4,11 @@ import type {EntryResource, GPURawBindgroupDescriptor} from "./bindgroup.types.t
 import GPURawBuffer from "../buffer/GPURawBuffer.ts";
 import {GPURawTexture} from "../texture/GPURawTexture.ts";
 import DeviceManager from "../../core/DeviceManager.ts";
-import type {TrackedResource} from "../../core/tracking/TrackedResources.ts";
+import {IndestructiveTrackedResource} from "../../core/tracking/IndestructiveTrackedResources.ts";
 import GPUBindgroupManager from "./GPUBindgroupManager.ts";
-import BaseResourceNeeds from "../BaseResourceNeeds.ts";
+import {BaseIndestructiveResourceNeeds} from "../BaseResourceNeeds.ts";
 
-export default class GPURawBindgroup extends BaseResourceNeeds {
+export default class GPURawBindgroup extends BaseIndestructiveResourceNeeds {
     protected nanoID!: string;
     private layout: GPURawBindgroupLayout;
     private entries: GPUBindGroupEntry[];
@@ -16,7 +16,7 @@ export default class GPURawBindgroup extends BaseResourceNeeds {
     private label?: string;
     private bindgroup!: GPUBindGroup;
     private boundResources: Record<string, EntryResource>;
-    protected tracker: TrackedResource
+    protected tracker: IndestructiveTrackedResource
 
     constructor(descriptor: GPURawBindgroupDescriptor) {
         super();
@@ -54,7 +54,7 @@ export default class GPURawBindgroup extends BaseResourceNeeds {
         })
     }
 
-    getTracker(): TrackedResource {
+    getTracker(): IndestructiveTrackedResource {
         return this.tracker;
     }
 
@@ -67,7 +67,7 @@ export default class GPURawBindgroup extends BaseResourceNeeds {
         });
 
         this.tracker.getDependencies().forEach(dependency => {
-            dependency.removeDependent(this.tracker);
+            if (dependency instanceof IndestructiveTrackedResource) dependency.removeDependent(this.tracker);
         });
 
         this.layout = undefined as any;

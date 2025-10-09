@@ -6,7 +6,8 @@ export type GPUTextureRawEntries = {
     usage: number,
     format: GPUTextureFormat,
     sampleCount?: number
-    mipmapCount?: number
+    mipmapCount?: number,
+    isAutoDestroy?: boolean
 }
 
 export type GPUBaseTextureEntries = {
@@ -16,7 +17,8 @@ export type GPUBaseTextureEntries = {
     usage: number,
     format: GPUTextureFormat,
     sampleCount?: number,
-    mipmapCount?: number
+    mipmapCount?: number,
+    isAutoDestroy?: boolean
 }
 
 
@@ -25,7 +27,8 @@ export type GPURenderTargetTextureEntries = {
     width: number,
     height: number
     format: GPUTextureFormat,
-    sampleCount?: number
+    sampleCount?: number,
+    isAutoDestroy?: boolean
 }
 
 export type GPUBaseTextureArrayEntries = {
@@ -35,7 +38,8 @@ export type GPUBaseTextureArrayEntries = {
     format: GPUTextureFormat,
     depthOrArrayLayers: number,
     mipmapCount?: number
-    data: Uint8ClampedArray[]
+    data: Uint8ClampedArray[],
+    isAutoDestroy?: boolean
 }
 
 export type GPUImageTextureEntries = {
@@ -45,7 +49,8 @@ export type GPUImageTextureEntries = {
     format: GPUTextureFormat,
     sampleCount?: number,
     data: Uint8ClampedArray,
-    mipmapCount?: number
+    mipmapCount?: number,
+    isAutoDestroy?: boolean
 }
 
 

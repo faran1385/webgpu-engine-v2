@@ -4,7 +4,7 @@ import type {
     GPUBindGroupManagerCreateEntries,
     GPURawBindgroupLayoutDescriptor
 } from "./bindgroup.types.ts";
-import {TrackedResource} from "../../core/tracking/TrackedResources.ts";
+import {IndestructiveTrackedResource} from "../../core/tracking/IndestructiveTrackedResources.ts";
 import {getLayoutEntries, hashBindgroupLayout} from "../../../helpers/bindgroupHelper.ts";
 import DeviceManager from "../../core/DeviceManager.ts";
 import GPUBindgroupManager from "./GPUBindgroupManager.ts";
@@ -12,7 +12,7 @@ import GPUBindgroupManager from "./GPUBindgroupManager.ts";
 export default class GPURawBindgroupLayout {
     private nanoID!: string;
 
-    private tracker: TrackedResource
+    private tracker: IndestructiveTrackedResource
     private layout!: GPUBindGroupLayout;
     private entries: GPUBindGroupLayoutEntry[]
     private totalBindingNumber: number;

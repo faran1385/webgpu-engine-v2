@@ -1,13 +1,13 @@
 import GPURawShaderModule from "./GPURawShaderModule.ts";
 import type {ManagerCreateEntries} from "./shaderModule.types.ts";
-import {TrackedResource} from "../../core/tracking/TrackedResources.ts";
+import {IndestructiveTrackedResource} from "../../core/tracking/IndestructiveTrackedResources.ts";
 import {fnv1aHash} from "../../../helpers/globalHelpler.ts";
 
 
 export default class ShaderModuleManager {
     private cache: Map<string, {
         wrapperClasses: Map<string, GPURawShaderModule>,
-        tracker: TrackedResource
+        tracker: IndestructiveTrackedResource
     }> = new Map();
 
     private static instance: ShaderModuleManager;
@@ -41,7 +41,7 @@ export default class ShaderModuleManager {
             return clone
         }
 
-        const tracker = new TrackedResource(hash);
+        const tracker = new IndestructiveTrackedResource(hash);
 
         const module = new GPURawShaderModule({
             ...T,

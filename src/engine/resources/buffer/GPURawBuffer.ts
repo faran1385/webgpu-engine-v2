@@ -1,27 +1,38 @@
 import {getNanoId} from "../../../helpers/globalHelpler.ts";
 import DeviceManager from "../../core/DeviceManager.ts";
 
-export default class GPURawBuffer {
-    private nanoID!: string;
+import type {GPURawBufferEntries} from "./buffer.types.ts";
+import {BaseDestructiveResourceNeeds} from "../BaseResourceNeeds.ts";
+import {DestructiveTrackedResource} from "../../core/tracking/destructiveTrackedResources.ts";
+
+export default class GPURawBuffer extends BaseDestructiveResourceNeeds {
+    protected nanoID!: string;
     private destroyStatus = false;
     private gpuBuffer!: GPUBuffer;
     private usage!: number;
     private size!: number;
-    private label!: string;
+    private label?: string;
+    protected tracker: DestructiveTrackedResource;
 
-    constructor(size: number, usage: number, label: string) {
-        const device=DeviceManager.instance.device
 
-        this.usage = usage;
-        this.size = size;
-        this.label = label;
+    constructor(T: GPURawBufferEntries) {
+        super();
+        const device = DeviceManager.instance.device
+        this.usage = T.usage;
+        this.size = T.size;
+        this.label = T.label;
         this.nanoID = getNanoId();
+        this.tracker = new DestructiveTrackedResource(this, T.isAutoDestroy ?? true);
+
         this.gpuBuffer = device.createBuffer({
-            size: size,
+            size: this.size,
             usage: this.usage,
             label: this.label,
         });
+    }
 
+    getTracker() {
+        return this.tracker;
     }
 
     private createGPUBuffer(device: GPUDevice) {
@@ -67,6 +78,9 @@ export default class GPURawBuffer {
     destroy(): void {
         this.destroyStatus = true;
         this.gpuBuffer.destroy();
+        this.tracker.getDependencies().forEach(dependency => {
+            dependency.removeDependent(this.tracker);
+        });
     }
 
     getUsage() {

@@ -98,3 +98,6 @@ const P1 = pipelineManager.createPipeline({
         buffers: []
     }
 })
+B1.destroyInternal()
+B2.destroyInternal()
+console.log(uniformBuffer)

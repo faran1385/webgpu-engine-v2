@@ -2,7 +2,7 @@ import type GPURawBindgroupLayout from "../bindgroup/GPURawBindgroupLayout.ts";
 import type GPURawPipelineLayout from "./GPURawPipelineLayout.ts";
 import type GPURawShaderModule from "../shaderModule/GPURawShaderModule.ts";
 import type GPUVertexBuffer from "../buffer/GPUVertexBuffer.ts";
-import type {TrackedResource} from "../../core/tracking/TrackedResources.ts";
+import type {IndestructiveTrackedResource} from "../../core/tracking/IndestructiveTrackedResources.ts";
 
 export enum Blending {
     NoBlending = 0b00000000,
@@ -40,10 +40,10 @@ export type GPURawPipelineEntries = {
     layout: GPURawPipelineLayout,
     depthStencil?: GPUDepthStencilState,
     primitive?: GPUPrimitiveState,
-    tracker: TrackedResource
+    tracker: IndestructiveTrackedResource
 } | {
     isCopy: true,
-    tracker: TrackedResource
+    tracker: IndestructiveTrackedResource
     pipelineLabel?: string;
     vertex: {
         module: GPURawShaderModule
@@ -73,13 +73,13 @@ export type GPURawPipelineLayoutEntries = {
     label?: string
     bindgroupLayouts: GPURawBindgroupLayout[],
     isCopy: false
-    tracker: TrackedResource
+    tracker: IndestructiveTrackedResource
 } | {
     isCopy: true
     bindgroupLayouts: GPURawBindgroupLayout[]
     pipelineLayout: GPUPipelineLayout;
     label?: string,
-    tracker: TrackedResource
+    tracker: IndestructiveTrackedResource
 }
 
 export type ManagerCreateEntries = {

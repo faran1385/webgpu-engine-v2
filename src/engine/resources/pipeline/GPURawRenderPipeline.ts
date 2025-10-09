@@ -2,14 +2,14 @@ import {getNanoId} from "../../../helpers/globalHelpler.ts";
 import {Blending, type GPURawPipelineEntries} from "./pipeline.types.ts";
 import type GPURawPipelineLayout from "./GPURawPipelineLayout.ts";
 import DeviceManager from "../../core/DeviceManager.ts";
-import type {TrackedResource} from "../../core/tracking/TrackedResources.ts";
+import {IndestructiveTrackedResource} from "../../core/tracking/IndestructiveTrackedResources.ts";
 import GPURenderPipelineManager from "./GPURenderPipelineManager.ts";
-import BaseResourceNeeds from "../BaseResourceNeeds.ts";
+import {BaseIndestructiveResourceNeeds} from "../BaseResourceNeeds.ts";
 
-export default class GPURawRenderPipeline extends BaseResourceNeeds{
+export default class GPURawRenderPipeline extends BaseIndestructiveResourceNeeds{
     protected nanoID!: string;
     private label?: string;
-    protected tracker: TrackedResource;
+    protected tracker: IndestructiveTrackedResource;
     vertexSetting: GPURawPipelineEntries["vertex"]
 
     fragmentSetting: GPURawPipelineEntries["fragment"];
@@ -124,7 +124,7 @@ export default class GPURawRenderPipeline extends BaseResourceNeeds{
         });
 
         this.tracker.getDependencies().forEach(dependency => {
-            dependency.removeDependent(this.tracker);
+            if (dependency instanceof IndestructiveTrackedResource) dependency.removeDependent(this.tracker);
         });
 
         this.label =undefined;

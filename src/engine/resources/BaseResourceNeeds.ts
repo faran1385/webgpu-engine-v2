@@ -1,6 +1,7 @@
-import type {TrackedResource} from "../core/tracking/TrackedResources.ts";
+import type {IndestructiveTrackedResource} from "../core/tracking/IndestructiveTrackedResources.ts";
+import type {DestructiveTrackedResource} from "../core/tracking/destructiveTrackedResources.ts";
 
-export default abstract class BaseResourceNeeds {
+export abstract class BaseIndestructiveResourceNeeds {
     abstract clone(): void;
 
     abstract destroyInternal(): void;
@@ -8,7 +9,21 @@ export default abstract class BaseResourceNeeds {
     abstract getNanoID(): string;
 
     protected abstract nanoID: string;
-    protected abstract tracker: TrackedResource;
+    protected abstract tracker: IndestructiveTrackedResource;
 
-    abstract getTracker(): TrackedResource;
+    abstract getTracker(): IndestructiveTrackedResource;
+}
+
+export abstract class BaseDestructiveResourceNeeds {
+
+
+    abstract getNanoID(): string;
+
+    protected abstract nanoID: string;
+
+    protected abstract tracker: DestructiveTrackedResource;
+
+    abstract destroy(): void;
+
+    abstract getTracker(): DestructiveTrackedResource;
 }

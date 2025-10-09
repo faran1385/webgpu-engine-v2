@@ -1,8 +1,25 @@
 import type {TypedArray} from "three";
 
+
+export type GPURawBufferEntries = {
+    size: number,
+    usage: number,
+    label?: string,
+    isAutoDestroy?: boolean,
+}
+
+export type GPUBaseBufferEntries = {
+    size: number,
+    usage: number,
+    label?: string,
+    data: TypedArray
+    isAutoDestroy?: boolean,
+}
+
 export type GPUBufferBaseEntries = {
     data: TypedArray,
     label: string,
+    isAutoDestroy?: boolean,
 }
 
 export type UpdateDataEntries = {

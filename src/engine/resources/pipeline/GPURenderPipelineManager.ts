@@ -2,18 +2,18 @@ import GPURawPipelineLayout from "./GPURawPipelineLayout.ts";
 import {type ManagerCreateEntries} from "./pipeline.types.ts";
 import GPURawRenderPipeline from "./GPURawRenderPipeline.ts";
 import {getPipelineHash} from "../../../helpers/pipelineHelper.ts";
-import {TrackedResource} from "../../core/tracking/TrackedResources.ts";
+import {IndestructiveTrackedResource} from "../../core/tracking/IndestructiveTrackedResources.ts";
 import {fnv1aHash} from "../../../helpers/globalHelpler.ts";
 
 export default class GPURenderPipelineManager {
     private static _instance: GPURenderPipelineManager;
     private pipelineLayoutCache: Map<string, {
         wrapperClasses: Map<string, GPURawPipelineLayout>,
-        tracker: TrackedResource
+        tracker: IndestructiveTrackedResource
     }> = new Map();
     private pipelineCache: Map<string, {
         wrapperClasses: Map<string, GPURawRenderPipeline>,
-        tracker: TrackedResource
+        tracker: IndestructiveTrackedResource
     }> = new Map();
 
     private constructor() {
@@ -58,7 +58,7 @@ export default class GPURenderPipelineManager {
             return clone;
         }
 
-        const tracker = new TrackedResource(hash);
+        const tracker = new IndestructiveTrackedResource(hash);
 
         const layout = new GPURawPipelineLayout({
             isCopy: false,
@@ -102,7 +102,7 @@ export default class GPURenderPipelineManager {
             return clone;
         }
 
-        const tracker = new TrackedResource(pipelineHash);
+        const tracker = new IndestructiveTrackedResource(pipelineHash);
 
         const pipeline = new GPURawRenderPipeline({
             vertex: T.vertex,

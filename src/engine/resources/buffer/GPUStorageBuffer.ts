@@ -4,7 +4,13 @@ import GPUBaseBuffer from "./GPUBaseBuffer.ts";
 export default class GPUStorageBuffer extends GPUBaseBuffer {
     bindType: "storage" | "read-only-storage" = "storage"
 
-    constructor({data, label}: GPUBufferBaseEntries) {
-        super(data, GPUBufferUsage.COPY_DST | GPUBufferUsage.STORAGE, label);
+    constructor({data, label,isAutoDestroy}: GPUBufferBaseEntries) {
+        super({
+            data,
+            label,
+            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+            isAutoDestroy,
+            size: data.byteLength
+        });
     }
 }

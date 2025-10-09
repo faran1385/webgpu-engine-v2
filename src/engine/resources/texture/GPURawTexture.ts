@@ -1,9 +1,11 @@
 import type {GPUTextureRawEntries} from "./texture.types.ts";
 import {getNanoId} from "../../../helpers/globalHelpler.ts";
 import DeviceManager from "../../core/DeviceManager.ts";
+import {BaseDestructiveResourceNeeds} from "../BaseResourceNeeds.ts";
+import {DestructiveTrackedResource} from "../../core/tracking/destructiveTrackedResources.ts";
 
-export class GPURawTexture {
-    private nanoID!: string;
+export class GPURawTexture extends BaseDestructiveResourceNeeds {
+    protected nanoID!: string;
     private destroyStatus: boolean = false;
     private gpuTexture!: GPUTexture;
     protected mipmapCount!: number;
@@ -16,6 +18,8 @@ export class GPURawTexture {
     private label: string;
     private isTextureArray: boolean;
     private sampleType: GPUTextureSampleType
+    protected tracker: DestructiveTrackedResource;
+
 
     constructor({
                     label,
@@ -25,8 +29,11 @@ export class GPURawTexture {
                     depthOrArrayLayers,
                     mipmapCount,
                     format,
-                    sampleCount
+                    sampleCount,
+                    isAutoDestroy
                 }: GPUTextureRawEntries) {
+        super();
+        this.tracker = new DestructiveTrackedResource(this, isAutoDestroy ?? true);
         this.width = width;
         this.height = height;
         this.format = format;
@@ -40,6 +47,10 @@ export class GPURawTexture {
         this.sampleType = this.getSampleTypeForFormat(this.format);
 
         this.createTexture()
+    }
+
+    getTracker(): DestructiveTrackedResource {
+        return this.tracker;
     }
 
     private getSampleTypeForFormat(format: GPUTextureFormat): GPUTextureSampleType {
@@ -139,6 +150,9 @@ export class GPURawTexture {
     destroy(): void {
         this.destroyStatus = true;
         this.gpuTexture.destroy();
+        this.tracker.getDependencies().forEach(dependency => {
+            dependency.removeDependent(this.tracker);
+        });
     }
 
     getView(descriptor: GPUTextureViewDescriptor) {
