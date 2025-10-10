@@ -1,17 +1,16 @@
 import {getNanoId} from "../../../helpers/globalHelpler.ts";
 import type {GPURawPipelineLayoutEntries} from "./pipeline.types.ts";
-import type GPURawBindgroupLayout from "../bindgroup/GPURawBindgroupLayout.ts";
-import DeviceManager from "../../core/DeviceManager.ts";
+import type GPURawBindgroupLayout from "../bindgroupLayout/GPURawBindgroupLayout.ts";
 import  {IndestructiveTrackedResource} from "../../core/tracking/IndestructiveTrackedResources.ts";
 import GPURenderPipelineManager from "./GPURenderPipelineManager.ts";
 import {BaseIndestructiveResourceNeeds} from "../BaseResourceNeeds.ts";
+import {PipelineLayoutTracker} from "../../core/tracking/pipelineLayoutTracker/pipelineLayoutTracker.ts";
 
 export default class GPURawPipelineLayout extends BaseIndestructiveResourceNeeds{
     private boundedBindGroups: GPURawBindgroupLayout[]
     protected nanoID!: string;
-    private pipelineLayout!: GPUPipelineLayout;
     private label?: string
-    protected tracker: IndestructiveTrackedResource
+    protected tracker: PipelineLayoutTracker
 
     constructor(T: GPURawPipelineLayoutEntries) {
         super();
@@ -19,17 +18,10 @@ export default class GPURawPipelineLayout extends BaseIndestructiveResourceNeeds
         this.boundedBindGroups = T.bindgroupLayouts
         this.label = T.label;
         this.tracker = T.tracker;
-        if (T.isCopy) {
-            this.pipelineLayout = T.pipelineLayout;
-        } else {
-            this.createPipelineLayout()
-        }
     }
 
     clone() {
         return new GPURawPipelineLayout({
-            isCopy: true,
-            pipelineLayout: this.pipelineLayout,
             label: this.label,
             tracker: this.tracker,
             bindgroupLayouts: this.boundedBindGroups
@@ -50,23 +42,11 @@ export default class GPURawPipelineLayout extends BaseIndestructiveResourceNeeds
 
         this.tracker = undefined as any;
         this.boundedBindGroups = [];
-        this.pipelineLayout = undefined as any;
         this.label = undefined;
         this.tracker = undefined as any;
+        console.warn(`pipeline layout with nano id ${this.getNanoID()} destroyed`)
     }
 
-    private createPipelineLayout() {
-        const device = DeviceManager.instance.device
-
-        this.pipelineLayout = device.createPipelineLayout({
-            label: this.label,
-            bindGroupLayouts: this.boundedBindGroups.map((i) => i.getLayout())
-        })
-    }
-
-    getPipelineLayout() {
-        return this.pipelineLayout;
-    }
 
     getTracker() {
         return this.tracker;

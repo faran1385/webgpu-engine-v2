@@ -1,8 +1,9 @@
-import type GPURawBindgroupLayout from "../bindgroup/GPURawBindgroupLayout.ts";
+import type GPURawBindgroupLayout from "../bindgroupLayout/GPURawBindgroupLayout.ts";
 import type GPURawPipelineLayout from "./GPURawPipelineLayout.ts";
 import type GPURawShaderModule from "../shaderModule/GPURawShaderModule.ts";
 import type GPUVertexBuffer from "../buffer/GPUVertexBuffer.ts";
-import type {IndestructiveTrackedResource} from "../../core/tracking/IndestructiveTrackedResources.ts";
+import {PipelineLayoutTracker} from "../../core/tracking/pipelineLayoutTracker/pipelineLayoutTracker.ts";
+import type {PipelineTracker} from "../../core/tracking/pipelineTracker/pipelineTracker.ts";
 
 export enum Blending {
     NoBlending = 0b00000000,
@@ -18,7 +19,6 @@ export enum Blending {
 
 
 export type GPURawPipelineEntries = {
-    isCopy: false,
     pipelineLabel?: string;
     vertex: {
         module: GPURawShaderModule
@@ -40,46 +40,14 @@ export type GPURawPipelineEntries = {
     layout: GPURawPipelineLayout,
     depthStencil?: GPUDepthStencilState,
     primitive?: GPUPrimitiveState,
-    tracker: IndestructiveTrackedResource
-} | {
-    isCopy: true,
-    tracker: IndestructiveTrackedResource
-    pipelineLabel?: string;
-    vertex: {
-        module: GPURawShaderModule
-        entryPoint?: string
-        constants?: Record<string, GPUPipelineConstantValue>,
-        buffers: (GPUVertexBuffer)[]
-    },
-    fragment?: {
-        module: GPURawShaderModule
-        entryPoint?: string
-        constants?: Record<string, GPUPipelineConstantValue>,
-        targets: ({
-            blend?: Blending,
-            mask?: number,
-            format: GPUTextureFormat
-        } | null | undefined)[]
-    },
-    layout: GPURawPipelineLayout
-    primitive?: GPUPrimitiveState
-    multiSample?: GPUMultisampleState
-    depthStencil?: GPUDepthStencilState
-    gpuPipeline: GPURenderPipeline
+    tracker: PipelineTracker
 }
 
 
 export type GPURawPipelineLayoutEntries = {
     label?: string
     bindgroupLayouts: GPURawBindgroupLayout[],
-    isCopy: false
-    tracker: IndestructiveTrackedResource
-} | {
-    isCopy: true
-    bindgroupLayouts: GPURawBindgroupLayout[]
-    pipelineLayout: GPUPipelineLayout;
-    label?: string,
-    tracker: IndestructiveTrackedResource
+    tracker: PipelineLayoutTracker
 }
 
 export type ManagerCreateEntries = {

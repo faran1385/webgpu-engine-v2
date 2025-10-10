@@ -26,6 +26,7 @@ export default class GeometryManager {
         const sortedBuffers = T.buffers.sort((a, b) => {
             return a.getNanoID().localeCompare(b.getNanoID());
         });
+
         const geometryHash = getGeometryHash({
             ...T,
             buffers: sortedBuffers
@@ -33,14 +34,14 @@ export default class GeometryManager {
 
         if (this.cache.has(geometryHash)) return this.cache.get(geometryHash)!;
 
-        const material = new GPURawGeometry({
+        const geometry = new GPURawGeometry({
             ...T,
             buffers:sortedBuffers,
             hash: geometryHash,
         })
 
-        this.cache.set(geometryHash, material)
+        this.cache.set(geometryHash, geometry)
 
-        return material;
+        return geometry;
     }
 }

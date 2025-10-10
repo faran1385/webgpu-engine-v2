@@ -5,81 +5,57 @@ import type {
 import GPURawBuffer from "../buffer/GPURawBuffer.ts";
 import {GPURawTexture} from "../texture/GPURawTexture.ts";
 import {fnv1aHash} from "../../../helpers/globalHelpler.ts";
-import {getLayoutEntries, hashBindgroupLayout} from "../../../helpers/bindgroupHelper.ts";
-import GPURawBindgroupLayout from "./GPURawBindgroupLayout.ts";
-import {IndestructiveTrackedResource} from "../../core/tracking/IndestructiveTrackedResources.ts";
+import GPURawBindgroupLayout from "../bindgroupLayout/GPURawBindgroupLayout.ts";
 import GPURawBindgroup from "./GPURawBindgroup.ts";
 import type {DestructiveResource} from "../../core/tracking/destructiveTrackedResources.ts";
+import BindgroupLayoutManager from "../bindgroupLayout/BindgroupLayoutManager.ts";
+import {BindgroupTracker} from "../../core/tracking/bindgroupTracker/bindgroupTracker.ts";
+import DeviceManager from "../../core/DeviceManager.ts";
 
 
-export default class GPUBindgroupManager {
-    private static _instance: GPUBindgroupManager;
+export default class BindgroupManager {
+    private static _instance: BindgroupManager;
     private bindGroupCache: Map<string, {
         wrapperClasses: Map<string, GPURawBindgroup>,
-        tracker: IndestructiveTrackedResource
+        tracker: BindgroupTracker
     }> = new Map();
-    private bindGroupLayoutCache: Map<string, {
-        wrapperClasses: Map<string, GPURawBindgroupLayout>,
-        tracker: IndestructiveTrackedResource
-    }> = new Map();
+    private layoutManager: BindgroupLayoutManager
 
     private constructor() {
+        this.layoutManager = BindgroupLayoutManager.init();
     }
 
-    layoutHashExists(hash: string) {
-        return this.bindGroupLayoutCache.has(hash);
-    }
 
-    bindgroupHashExists(hash: string) {
+    hashExists(hash: string) {
         return this.bindGroupCache.has(hash);
     }
 
-    createLayout(T: GPUBindGroupManagerCreateEntries) {
-
-        const layoutEntries = getLayoutEntries(T.resources)
-        const hash = hashBindgroupLayout(layoutEntries);
-        const cachedData = this.bindGroupLayoutCache.get(hash);
-
-        if (cachedData && cachedData.wrapperClasses.size > 0) {
-            const clone = Array.from(cachedData.wrapperClasses)[0][1].clone();
-            cachedData.wrapperClasses.set(clone.getNanoID(), clone);
-            return clone;
-        }
-        const tracker = new IndestructiveTrackedResource(hash);
-
-        const layout = new GPURawBindgroupLayout({
-            isCopy: false,
-            entries: getLayoutEntries(T.resources),
-            label: T.layoutLabel,
-            tracker
-        });
-
-        this.bindGroupLayoutCache.set(hash, {
-            wrapperClasses: new Map([[layout.getNanoID(), layout]]),
-            tracker
-        });
-        return layout;
-    }
-
-    removeLayout(hash: string, nanoId: string) {
-        this.removeFromCache(hash, nanoId, "bindGroupLayoutCache")
-    }
 
     removeBindgroup(hash: string, nanoId: string) {
-        this.removeFromCache(hash, nanoId, "bindGroupCache")
-    }
-
-    private removeFromCache(hash: string, nanoId: string, cacheName: "bindGroupLayoutCache" | "bindGroupCache") {
-        const map = this[cacheName].get(hash);
+        const map = this.bindGroupCache.get(hash);
         if (map) {
             map.wrapperClasses.delete(nanoId)
-            if (map.wrapperClasses.size <= 0) this[cacheName].delete(hash)
+            if (map.wrapperClasses.size <= 0) this.bindGroupCache.delete(hash)
         }
+    }
+
+
+    createGPUBindgroup(label: string | undefined, layout: GPURawBindgroupLayout, entries: ReturnType<typeof this.getBindgroupEntries>["entries"]) {
+        const device = DeviceManager.instance.device;
+
+        return device.createBindGroup({
+            label,
+            layout: layout.getTracker().getLayout(),
+            entries
+        })
     }
 
     public createBindgroup(T: GPUBindGroupManagerCreateEntries) {
 
-        const layout: GPURawBindgroupLayout = this.createLayout(T);
+        const layout: GPURawBindgroupLayout = this.layoutManager.createLayout({
+            resources: T.resources,
+            layoutLabel: T.layoutLabel
+        })
 
         const bindgroupEntries = this.getBindgroupEntries(layout, T.resources)
         const bindgroupHash = fnv1aHash(`${layout.getTracker().getHash()}${bindgroupEntries.entriesHash}`)
@@ -102,7 +78,9 @@ export default class GPUBindgroupManager {
             return clone;
         }
 
-        const tracker = new IndestructiveTrackedResource(bindgroupHash);
+        const gpuBindgroup = this.createGPUBindgroup(T.bindgroupLabel, layout, this.getBindgroupEntries(layout, T.resources).entries);
+
+        const tracker = new BindgroupTracker(bindgroupHash, gpuBindgroup);
 
 
         const bindgroup = new GPURawBindgroup({
@@ -174,7 +152,7 @@ export default class GPUBindgroupManager {
 
     public static init() {
         if (!this._instance) {
-            this._instance = new GPUBindgroupManager();
+            this._instance = new BindgroupManager();
         }
 
         return this._instance

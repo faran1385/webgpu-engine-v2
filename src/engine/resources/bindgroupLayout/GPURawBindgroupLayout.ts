@@ -3,35 +3,32 @@ import type {
     GPUBaseBindgroupLayoutEntries,
     GPUBindGroupManagerCreateEntries,
     GPURawBindgroupLayoutDescriptor
-} from "./bindgroup.types.ts";
-import {IndestructiveTrackedResource} from "../../core/tracking/IndestructiveTrackedResources.ts";
-import {getLayoutEntries, hashBindgroupLayout} from "../../../helpers/bindgroupHelper.ts";
-import DeviceManager from "../../core/DeviceManager.ts";
-import GPUBindgroupManager from "./GPUBindgroupManager.ts";
+} from "../bindgroup/bindgroup.types.ts";
+import {getLayoutEntries} from "../../../helpers/bindgroupHelper.ts";
+import {BindgroupLayoutTracker} from "../../core/tracking/bindgroupLayoutTracker/bindgroupLayoutTracker.ts";
+import BindgroupLayoutManager from "./BindgroupLayoutManager.ts";
 
 export default class GPURawBindgroupLayout {
     private nanoID!: string;
-
-    private tracker: IndestructiveTrackedResource
-    private layout!: GPUBindGroupLayout;
+    private manager: BindgroupLayoutManager;
+    private tracker: BindgroupLayoutTracker
     private entries: GPUBindGroupLayoutEntry[]
     private totalBindingNumber: number;
-    private bindgroupLayoutLabel?: string;
+    private label?: string;
     private entriesWithName: GPUBaseBindgroupLayoutEntries["entries"];
 
     constructor(descriptor: GPURawBindgroupLayoutDescriptor) {
         this.nanoID = getNanoId();
-
+        this.manager = BindgroupLayoutManager.init();
         this.tracker = descriptor.tracker;
         if (descriptor.isCopy) {
             this.totalBindingNumber = descriptor.totalBindingNumber;
-            this.bindgroupLayoutLabel = descriptor.bindgroupLayoutLabel;
+            this.label = descriptor.bindgroupLayoutLabel;
             this.entriesWithName = descriptor.entriesWithName;
-            this.layout = descriptor.layout;
             this.entries = descriptor.entries;
         } else {
             this.totalBindingNumber = Object.keys(descriptor.entries).length;
-            this.bindgroupLayoutLabel = descriptor.label;
+            this.label = descriptor.label;
             this.entriesWithName = descriptor.entries;
 
             const ArrayEntries: GPUBindGroupLayoutEntry[] = []
@@ -39,9 +36,21 @@ export default class GPURawBindgroupLayout {
                 ArrayEntries.push(descriptor.entries[entry]);
             }
             this.entries = ArrayEntries;
-
-            this.createBindgroupLayout();
         }
+    }
+
+
+    setEntries(T: GPUBindGroupManagerCreateEntries["resources"]) {
+        const entries = getLayoutEntries(T);
+        this.totalBindingNumber = Object.keys(entries).length;
+        this.entriesWithName = entries;
+
+        const ArrayEntries: GPUBindGroupLayoutEntry[] = []
+        for (const entry in entries) {
+            ArrayEntries.push(entries[entry]);
+        }
+        this.entries = ArrayEntries;
+        this.update()
     }
 
     private getRecordFromEntries() {
@@ -54,30 +63,42 @@ export default class GPURawBindgroupLayout {
         return record;
     }
 
+    update() {
+        const oldHash = this.getTracker().getHash();
+        const newHash = this.manager.compileHash(this.getRecordFromEntries());
 
-    computeHash(): string {
-        return hashBindgroupLayout(this.getRecordFromEntries())
+        if (oldHash === newHash) return;
+
+
+        this.manager.removeLayout(oldHash, this.nanoID)
+
+        let cachedInfo = this.manager.getCachedInfoByHash(newHash);
+        if (!cachedInfo) {
+
+            const record = this.getRecordFromEntries();
+            const gpuLayout = this.manager.createGPULayout(this.label, record);
+            const tracker = new BindgroupLayoutTracker(newHash, gpuLayout);
+
+            this.manager.addToCache(newHash, {
+                wrapperClasses: new Map([[this.nanoID, this]]),
+                tracker,
+            })
+            this.tracker = tracker;
+        } else {
+            this.tracker = cachedInfo?.tracker;
+            cachedInfo.wrapperClasses.set(this.nanoID, this);
+        }
     }
+
 
     getEntry(name: string) {
         return this.entriesWithName[name];
-    }
-
-    private createBindgroupLayout() {
-        const device = DeviceManager.instance.device
-        this.layout = device.createBindGroupLayout({
-            entries: this.entries,
-            label: this.bindgroupLayoutLabel,
-        })
     }
 
     getNanoID(): string {
         return this.nanoID;
     }
 
-    getLayout() {
-        return this.layout;
-    }
 
     getLayoutEntries() {
         return this.entries;
@@ -89,52 +110,28 @@ export default class GPURawBindgroupLayout {
     }
 
     destroyInternal() {
-        const manager = GPUBindgroupManager.init();
-        manager.removeLayout(this.tracker.getHash(), this.nanoID)
+        this.manager.removeLayout(this.tracker.getHash(), this.nanoID)
 
         this.tracker.getDependents().forEach(dependent => {
             dependent.removeDependency(this.tracker);
         });
 
-        this.tracker.getDependencies().forEach(dependency => {
-            dependency.removeDependent(this.tracker);
-        });
-
         this.tracker = undefined as any;
-        this.layout = undefined as any;
         this.totalBindingNumber = 0;
         this.entries = [];
         this.entriesWithName = {};
-        this.bindgroupLayoutLabel = undefined;
-    }
-
-    setEntries(resources: GPUBindGroupManagerCreateEntries["resources"]) {
-        const entries = getLayoutEntries(resources);
-        const entriesWithName = entries;
-
-        const ArrayEntries: GPUBindGroupLayoutEntry[] = []
-        for (const entry in entries) {
-            ArrayEntries.push(entries[entry]);
-        }
-
-
-        this.entries = ArrayEntries;
-        this.entriesWithName = entriesWithName;
-        console.log(
-            this.computeHash()
-        )
-        this.createBindgroupLayout();
+        this.label = undefined;
+        console.warn(`bindgroup layout with nano id ${this.getNanoID()} destroyed`)
     }
 
 
     clone() {
         return new GPURawBindgroupLayout({
             isCopy: true,
-            bindgroupLayoutLabel: this.bindgroupLayoutLabel,
+            bindgroupLayoutLabel: this.label,
             entries: this.entries,
             entriesWithName: this.entriesWithName,
             totalBindingNumber: this.totalBindingNumber,
-            layout: this.layout,
             tracker: this.tracker
         })
     }

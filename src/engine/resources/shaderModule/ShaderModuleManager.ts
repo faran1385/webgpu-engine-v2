@@ -1,13 +1,14 @@
 import GPURawShaderModule from "./GPURawShaderModule.ts";
 import type {ManagerCreateEntries} from "./shaderModule.types.ts";
-import {IndestructiveTrackedResource} from "../../core/tracking/IndestructiveTrackedResources.ts";
 import {fnv1aHash} from "../../../helpers/globalHelpler.ts";
+import {ShaderModuleTracker} from "../../core/tracking/shaderModuleTracker/shaderModuleTracker.ts";
+import DeviceManager from "../../core/DeviceManager.ts";
 
 
 export default class ShaderModuleManager {
     private cache: Map<string, {
         wrapperClasses: Map<string, GPURawShaderModule>,
-        tracker: IndestructiveTrackedResource
+        tracker: ShaderModuleTracker
     }> = new Map();
 
     private static instance: ShaderModuleManager;
@@ -31,6 +32,15 @@ export default class ShaderModuleManager {
         }
     }
 
+    createGPUShaderModule(code: string, label: string | undefined) {
+        const device = DeviceManager.instance.device;
+
+        return device.createShaderModule({
+            code,
+            label
+        })
+    }
+
     createShaderModule(T: ManagerCreateEntries) {
         const hash = fnv1aHash(T.code);
         const cachedData = this.cache.get(hash);
@@ -41,7 +51,9 @@ export default class ShaderModuleManager {
             return clone
         }
 
-        const tracker = new IndestructiveTrackedResource(hash);
+        const gpuModule = this.createGPUShaderModule(T.code, T.label)
+
+        const tracker = new ShaderModuleTracker(hash, gpuModule);
 
         const module = new GPURawShaderModule({
             ...T,

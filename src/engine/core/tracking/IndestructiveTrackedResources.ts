@@ -45,4 +45,8 @@ export class IndestructiveTrackedResource {
     getHash() {
         return this.hash;
     }
+
+    setHash(hash: string) {
+        this.hash = hash;
+    }
 }

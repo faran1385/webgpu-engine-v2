@@ -81,6 +81,7 @@ export default class GPURawBuffer extends BaseDestructiveResourceNeeds {
         this.tracker.getDependencies().forEach(dependency => {
             dependency.removeDependent(this.tracker);
         });
+        console.warn(`buffer with nano id ${this.getNanoID()} destroyed`)
     }
 
     getUsage() {

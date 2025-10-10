@@ -1,16 +1,15 @@
 import {getNanoId} from "../../../helpers/globalHelpler.ts";
 import type {shaderModuleEntries} from "./shaderModule.types.ts";
-import DeviceManager from "../../core/DeviceManager.ts";
 import {IndestructiveTrackedResource} from "../../core/tracking/IndestructiveTrackedResources.ts";
 import ShaderModuleManager from "./ShaderModuleManager.ts";
 import {BaseIndestructiveResourceNeeds} from "../BaseResourceNeeds.ts";
+import {ShaderModuleTracker} from "../../core/tracking/shaderModuleTracker/shaderModuleTracker.ts";
 
 export default class GPURawShaderModule extends BaseIndestructiveResourceNeeds {
     protected nanoID!: string;
     private code: string
     private label?: string;
-    private module!: GPUShaderModule;
-    protected tracker: IndestructiveTrackedResource
+    protected tracker: ShaderModuleTracker
 
 
     constructor(T: shaderModuleEntries) {
@@ -20,19 +19,11 @@ export default class GPURawShaderModule extends BaseIndestructiveResourceNeeds {
         this.code = T.code;
         this.label = T.label;
         this.tracker = T.tracker
-
-        if (T.isCopy) {
-            this.module = T.module;
-        } else {
-            this.createModule()
-        }
     }
 
     clone() {
         return new GPURawShaderModule({
-            isCopy: true,
             code: this.code,
-            module: this.module,
             label: this.label,
             tracker: this.tracker
         })
@@ -53,24 +44,12 @@ export default class GPURawShaderModule extends BaseIndestructiveResourceNeeds {
         this.tracker = undefined as any;
         this.code = undefined as any;
         this.label = undefined;
+        console.warn(`shader module with nano id ${this.getNanoID()} destroyed`)
 
     }
 
     getTracker() {
         return this.tracker;
-    }
-
-    private createModule() {
-        const device = DeviceManager.instance.device
-
-        this.module = device.createShaderModule({
-            code: this.code,
-            label: this.label,
-        })
-    }
-
-    getModule() {
-        return this.module;
     }
 
     getCode(): string {

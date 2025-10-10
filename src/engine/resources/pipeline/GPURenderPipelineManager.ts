@@ -1,22 +1,21 @@
 import GPURawPipelineLayout from "./GPURawPipelineLayout.ts";
 import {type ManagerCreateEntries} from "./pipeline.types.ts";
 import GPURawRenderPipeline from "./GPURawRenderPipeline.ts";
-import {getPipelineHash} from "../../../helpers/pipelineHelper.ts";
-import {IndestructiveTrackedResource} from "../../core/tracking/IndestructiveTrackedResources.ts";
-import {fnv1aHash} from "../../../helpers/globalHelpler.ts";
+import {getPipelineDescriptor, getPipelineHash} from "../../../helpers/pipelineHelper.ts";
+import PipelineLayoutManager from "../pipelineLayout/PipelineLayoutManager.ts";
+import {PipelineTracker} from "../../core/tracking/pipelineTracker/pipelineTracker.ts";
+import DeviceManager from "../../core/DeviceManager.ts";
 
 export default class GPURenderPipelineManager {
     private static _instance: GPURenderPipelineManager;
-    private pipelineLayoutCache: Map<string, {
-        wrapperClasses: Map<string, GPURawPipelineLayout>,
-        tracker: IndestructiveTrackedResource
-    }> = new Map();
-    private pipelineCache: Map<string, {
+    private pipelineLayoutManager: PipelineLayoutManager;
+    private cache: Map<string, {
         wrapperClasses: Map<string, GPURawRenderPipeline>,
-        tracker: IndestructiveTrackedResource
+        tracker: PipelineTracker
     }> = new Map();
 
     private constructor() {
+        this.pipelineLayoutManager = PipelineLayoutManager.init()
     }
 
     public static init() {
@@ -27,71 +26,29 @@ export default class GPURenderPipelineManager {
     }
 
     removePipeline(hash: string, nanoId: string) {
-        this.removeFromCache(hash, nanoId, "pipelineCache")
-    }
-
-    removeLayout(hash: string, nanoId: string) {
-        this.removeFromCache(hash, nanoId, "pipelineLayoutCache")
-    }
-
-    private removeFromCache(hash: string, nanoId: string, cacheName: "pipelineCache" | "pipelineLayoutCache") {
-        const map = this[cacheName].get(hash);
+        const map = this.cache.get(hash);
         if (map) {
             map.wrapperClasses.delete(nanoId)
-            if (map.wrapperClasses.size <= 0) this[cacheName].delete(hash)
+            if (map.wrapperClasses.size <= 0) this.cache.delete(hash)
         }
     }
 
-    createPipelineLayout(T: {
-        bindgroupLayouts: ManagerCreateEntries["bindgroupLayouts"],
-        layoutLabel?: ManagerCreateEntries["layoutLabel"],
-    }) {
-        const hash = fnv1aHash(T.bindgroupLayouts.map(i => i.getNanoID()).join(""))
 
-        const cachedData = this.pipelineLayoutCache.get(hash);
-
-        if (cachedData && cachedData.wrapperClasses.size > 0) {
-            const clone = Array.from(cachedData.wrapperClasses)[0][1].clone();
-            cachedData.wrapperClasses.set(clone.getNanoID(), clone);
-            this.setPipelineLayoutRelations(T.bindgroupLayouts, clone)
-
-            return clone;
-        }
-
-        const tracker = new IndestructiveTrackedResource(hash);
-
-        const layout = new GPURawPipelineLayout({
-            isCopy: false,
-            label: T.layoutLabel,
-            tracker,
-            bindgroupLayouts: T.bindgroupLayouts
-        });
-
-        this.setPipelineLayoutRelations(T.bindgroupLayouts, layout)
-        this.pipelineLayoutCache.set(hash, {
-            wrapperClasses: new Map([[layout.getNanoID(), layout]]),
-            tracker
-        });
-        return layout;
-    }
-
-    private setPipelineLayoutRelations(bindgroupLayouts: ManagerCreateEntries["bindgroupLayouts"], layout: GPURawPipelineLayout) {
-        bindgroupLayouts.forEach((i) => {
-            i.getTracker().addDependency(layout.getTracker())
-            layout.getTracker().addDependent(i.getTracker())
-        })
+    createGPUPipeline(T: ManagerCreateEntries, layout: GPURawPipelineLayout) {
+        const device = DeviceManager.instance.device
+        return device.createRenderPipeline(getPipelineDescriptor(T, layout))
     }
 
     createPipeline(T: ManagerCreateEntries) {
-        const layout = this.createPipelineLayout({
+        const layout = this.pipelineLayoutManager.createPipelineLayout({
             bindgroupLayouts: T.bindgroupLayouts,
             layoutLabel: T.layoutLabel
-        });
+        })
 
         const pipelineHash = getPipelineHash(T, layout.getTracker().getHash());
 
 
-        const cachedData = this.pipelineCache.get(pipelineHash);
+        const cachedData = this.cache.get(pipelineHash);
 
         if (cachedData && cachedData.wrapperClasses.size > 0) {
             const clone = Array.from(cachedData.wrapperClasses)[0][1].clone();
@@ -102,7 +59,9 @@ export default class GPURenderPipelineManager {
             return clone;
         }
 
-        const tracker = new IndestructiveTrackedResource(pipelineHash);
+        const gpuPipeline = this.createGPUPipeline(T, layout);
+
+        const tracker = new PipelineTracker(pipelineHash, gpuPipeline);
 
         const pipeline = new GPURawRenderPipeline({
             vertex: T.vertex,
@@ -111,12 +70,11 @@ export default class GPURenderPipelineManager {
             primitive: T.primitive,
             depthStencil: T.depthStencil,
             tracker,
-            isCopy: false,
             multiSample: T.multiSample,
             layout
         })
 
-        this.pipelineCache.set(pipelineHash, {
+        this.cache.set(pipelineHash, {
             wrapperClasses: new Map([[pipeline.getNanoID(), pipeline]]),
             tracker
         })

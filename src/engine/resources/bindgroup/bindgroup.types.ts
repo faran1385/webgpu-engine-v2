@@ -2,18 +2,12 @@ import type GPUUniformBuffer from "../buffer/GPUUniformBuffer.ts";
 import type GPUStorageBuffer from "../buffer/GPUStorageBuffer.ts";
 import type GPUBaseTextureArray from "../texture/GPUBaseTextureArray.ts";
 import type GPUBaseTexture from "../texture/GPUBaseTexture.ts";
-import type GPURawBindgroupLayout from "./GPURawBindgroupLayout.ts";
+import type GPURawBindgroupLayout from "../bindgroupLayout/GPURawBindgroupLayout.ts";
 import type GPURawSampler from "../sampler/GPURawSampler.ts";
-import type {IndestructiveTrackedResource} from "../../core/tracking/IndestructiveTrackedResources.ts";
+import type {BindgroupLayoutTracker} from "../../core/tracking/bindgroupLayoutTracker/bindgroupLayoutTracker.ts";
+import {BindgroupTracker} from "../../core/tracking/bindgroupTracker/bindgroupTracker.ts";
 
 export type EntryResource = GPUUniformBuffer | GPUStorageBuffer | GPUBaseTextureArray | GPUBaseTexture | GPURawSampler
-export type GPUBaseBindgroupEntries = {
-    entries: GPUBindGroupEntry[],
-    label?: string,
-    layout: GPURawBindgroupLayout,
-    hash: string
-    boundResources: Record<string, EntryResource>;
-}
 
 export type GPUBaseBindgroupLayoutEntries = {
     entries: Record<string, GPUBindGroupLayoutEntry>,
@@ -36,27 +30,25 @@ export type GPURawBindgroupDescriptor = {
     layout: GPURawBindgroupLayout,
     label?: string,
     boundResources: Record<string, EntryResource>,
-    tracker: IndestructiveTrackedResource
+    tracker: BindgroupTracker
 } | {
     isCopy: true;
     layout: GPURawBindgroupLayout;
     entries: GPUBindGroupEntry[];
     totalBindingNumber: number;
     label?: string;
-    bindgroup: GPUBindGroup;
     boundResources: Record<string, EntryResource>;
-    tracker: IndestructiveTrackedResource
+    tracker: BindgroupTracker
 }
 
 export type GPURawBindgroupLayoutDescriptor = {
     label?: string;
     isCopy: false,
-    tracker: IndestructiveTrackedResource,
+    tracker: BindgroupLayoutTracker,
     entries: GPUBaseBindgroupLayoutEntries["entries"]
 } | {
     isCopy: true;
-    tracker: IndestructiveTrackedResource,
-    layout: GPUBindGroupLayout;
+    tracker: BindgroupLayoutTracker,
     entries: GPUBindGroupLayoutEntry[]
     totalBindingNumber: number;
     bindgroupLayoutLabel?: string;

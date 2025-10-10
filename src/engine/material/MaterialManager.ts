@@ -21,13 +21,15 @@ export default class MaterialManager {
         return this.instance;
     }
 
-    public create(device: GPUDevice, T: MaterialCreateEntries) {
-        const vertexModule = this.shaderModuleManager.createShaderModule(device, {
-            code: T.vertex.shader
+    public create(T: MaterialCreateEntries) {
+        const vertexModule = this.shaderModuleManager.createShaderModule({
+            code: T.vertex.shader,
+            isCopy:false
         })
 
-        const fragmentModule = T.fragment ? this.shaderModuleManager.createShaderModule(device, {
-            code: T.fragment.shader
+        const fragmentModule = T.fragment ? this.shaderModuleManager.createShaderModule({
+            code: T.fragment.shader,
+            isCopy:false
         }) : null
 
         const materialEntries = {

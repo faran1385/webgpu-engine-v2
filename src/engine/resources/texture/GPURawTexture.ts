@@ -153,6 +153,8 @@ export class GPURawTexture extends BaseDestructiveResourceNeeds {
         this.tracker.getDependencies().forEach(dependency => {
             dependency.removeDependent(this.tracker);
         });
+
+        console.warn(`texture with nano id ${this.getNanoID()} destroyed`)
     }
 
     getView(descriptor: GPUTextureViewDescriptor) {
