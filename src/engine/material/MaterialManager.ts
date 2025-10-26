@@ -24,12 +24,10 @@ export default class MaterialManager {
     public create(T: MaterialCreateEntries) {
         const vertexModule = this.shaderModuleManager.createShaderModule({
             code: T.vertex.shader,
-            isCopy:false
         })
 
         const fragmentModule = T.fragment ? this.shaderModuleManager.createShaderModule({
             code: T.fragment.shader,
-            isCopy:false
         }) : null
 
         const materialEntries = {

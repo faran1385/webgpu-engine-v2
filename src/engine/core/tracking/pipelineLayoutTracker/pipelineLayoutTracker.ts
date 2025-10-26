@@ -8,7 +8,7 @@ export class PipelineLayoutTracker extends IndestructiveTrackedResource {
         this.pipelineLayout = layout;
     }
 
-    getPipelineLayout() {
+    getGPUResource() {
         return this.pipelineLayout;
     }
 }

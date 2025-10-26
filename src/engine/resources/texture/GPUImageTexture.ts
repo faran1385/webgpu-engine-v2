@@ -14,8 +14,8 @@ export class GPUImageTexture extends GPUBaseTexture {
     }
 
     fillWithData(data: Uint8ClampedArray) {
-        const device=DeviceManager.instance.device
-        const texture = this.getTexture();
+        const device = DeviceManager.instance.device
+        const texture = this.getTracker().getGPUResource();
 
 
         device.queue.writeTexture(

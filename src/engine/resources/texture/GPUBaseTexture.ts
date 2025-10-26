@@ -34,7 +34,7 @@ export default class GPUBaseTexture extends GPURawTexture {
     generateMipmaps() {
         const device=DeviceManager.instance.device
 
-        const texture = this.getTexture();
+        const texture = this.getTracker().getGPUResource();
         const mipLevelCount = this.getMipmapCount();
         const format = this.getFormat();
 

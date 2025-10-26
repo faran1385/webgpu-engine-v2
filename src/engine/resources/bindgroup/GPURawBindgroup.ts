@@ -1,10 +1,16 @@
 import {getNanoId} from "../../../helpers/globalHelpler.ts";
 import type GPURawBindgroupLayout from "../bindgroupLayout/GPURawBindgroupLayout.ts";
-import type {EntryResource, GPURawBindgroupDescriptor} from "./bindgroup.types.ts";
-import {IndestructiveTrackedResource} from "../../core/tracking/IndestructiveTrackedResources.ts";
-import BindgroupManager from "./BindgroupManager.ts";
+import type {
+    BindgroupGraph,
+    BindgroupParent,
+    EntryResource, GPUBindGroupManagerCreateEntries,
+    GPURawBindgroupDescriptor
+} from "./bindgroup.types.ts";
 import {BaseIndestructiveResourceNeeds} from "../BaseResourceNeeds.ts";
 import {BindgroupTracker} from "../../core/tracking/bindgroupTracker/bindgroupTracker.ts";
+import BindgroupManager from "./BindgroupManager.ts";
+import ResourceUpdater from "../../core/resourceUpdater/ResourceUpdater.ts";
+import {getResourcesWidthBinding} from "../../../helpers/bindgroupHelper.ts";
 
 export default class GPURawBindgroup extends BaseIndestructiveResourceNeeds {
     protected nanoID!: string;
@@ -14,10 +20,27 @@ export default class GPURawBindgroup extends BaseIndestructiveResourceNeeds {
     private label?: string;
     private boundResources: Record<string, EntryResource>;
     protected tracker: BindgroupTracker
+    private manager: BindgroupManager;
+    private resourceUpdater: ResourceUpdater
+    private graph: BindgroupGraph = {
+        parents: new Set(),
+        children: null
+    }
+    private updateTo: null | {
+        entries: GPUBindGroupEntry[];
+        totalBindingNumber: number;
+        label?: string;
+        boundResources: Record<string, EntryResource>;
+    } = null
+
+    needsUpdate: boolean = false;
+    isBuilt: boolean = true;
 
     constructor(descriptor: GPURawBindgroupDescriptor) {
         super();
+        this.resourceUpdater = ResourceUpdater.init();
         this.nanoID = getNanoId();
+        this.manager = BindgroupManager.init();
 
         if (descriptor.isCopy) {
             this.totalBindingNumber = descriptor.totalBindingNumber;
@@ -36,12 +59,69 @@ export default class GPURawBindgroup extends BaseIndestructiveResourceNeeds {
         }
     }
 
-    clone() {
+    getManager() {
+        return this.manager
+    }
+
+    private applyUpdates() {
+        this.boundResources = this.updateTo?.boundResources! ?? this.boundResources;
+        this.entries = this.updateTo?.entries! ?? this.entries;
+        this.totalBindingNumber = this.updateTo?.totalBindingNumber! ?? this.totalBindingNumber;
+        this.label = this.updateTo?.label;
+
+        this.updateTo = null;
+        this.isBuilt = true;
+        this.needsUpdate = false;
+    }
+
+
+    rebuild() {
+        this.applyUpdates()
+        const hash = this.manager.compileHash(this.layout, this.updateTo?.boundResources ?? this.boundResources)
+        ResourceUpdater.init().addToIndestructiveDeleteQueue(this,this.getTracker().getHash());
+        this.tracker = this.manager.createOrGetTracker(hash, this);
+    }
+
+    setEntries(T: GPUBindGroupManagerCreateEntries["resources"]) {
+        const bindgroupEntries = this.manager.getBindgroupEntries(getResourcesWidthBinding(T))
+
+        const newHash = this.manager.compileHash(this.layout, bindgroupEntries.boundResources);
+        this.updateTo = {
+            entries: bindgroupEntries.entries,
+            totalBindingNumber: bindgroupEntries.entries.length,
+            label: this.label,
+            boundResources: bindgroupEntries.boundResources
+        }
+
+        if (newHash === this.tracker.getHash()) {
+            this.resourceUpdater.removeFromUpdateQueue(this)
+            this.updateTo = null
+            this.needsUpdate = false;
+        } else {
+
+            this.needsUpdate = true;
+            this.resourceUpdater.addToUpdateQueue(this)
+        }
+    }
+
+    getGraph() {
+        return this.graph;
+    }
+
+    getLabel() {
+        return this.label;
+    }
+
+    getUpdateTo() {
+        return this.updateTo;
+    }
+
+    clone(layout: GPURawBindgroupLayout) {
         return new GPURawBindgroup({
             isCopy: true,
             entries: this.entries,
             totalBindingNumber: this.totalBindingNumber,
-            layout: this.layout,
+            layout,
             tracker: this.tracker,
             label: this.label,
             boundResources: this.boundResources,
@@ -53,24 +133,14 @@ export default class GPURawBindgroup extends BaseIndestructiveResourceNeeds {
     }
 
     destroyInternal() {
-        const manager = BindgroupManager.init();
-        manager.removeBindgroup(this.tracker.getHash(), this.nanoID)
+    }
 
-        this.tracker.getDependents().forEach(dependent => {
-            dependent.removeDependency(this.tracker);
-        });
+    addParent(parent: BindgroupParent) {
+        this.graph.parents.add(parent);
+    }
 
-        this.tracker.getDependencies().forEach(dependency => {
-            if (dependency instanceof IndestructiveTrackedResource) dependency.removeDependent(this.tracker);
-        });
-
-        this.layout = undefined as any;
-        this.entries = [];
-        this.totalBindingNumber = 0;
-        this.label = undefined;
-        this.boundResources = {};
-        this.tracker = undefined as any;
-        console.warn(`bindgroup with nano id ${this.getNanoID()} destroyed`)
+    removeParent(parent: BindgroupParent) {
+        this.graph.parents.delete(parent);
     }
 
 
@@ -78,9 +148,14 @@ export default class GPURawBindgroup extends BaseIndestructiveResourceNeeds {
         return this.boundResources[name];
     }
 
+    getBoundedResources() {
+        return this.boundResources
+    }
+
     getNanoID(): string {
         return this.nanoID;
     }
+
     getLayout() {
         return this.layout;
     }

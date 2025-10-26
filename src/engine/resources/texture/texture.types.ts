@@ -1,3 +1,5 @@
+import type {TextureChild} from "./GPURawTexture.ts";
+
 export type GPUTextureRawEntries = {
     label: string,
     depthOrArrayLayers: number,
@@ -53,6 +55,11 @@ export type GPUImageTextureEntries = {
     isAutoDestroy?: boolean
 }
 
+
+export type TextureGraph = {
+    parents: null,
+    children: Set<TextureChild>
+}
 
 export type TextureMangerCreateTextureArrayOptions = {
     label?: string,

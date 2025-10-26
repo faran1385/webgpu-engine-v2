@@ -1,13 +1,15 @@
-import type {GPUTextureRawEntries} from "./texture.types.ts";
+import type {GPUTextureRawEntries, TextureGraph} from "./texture.types.ts";
 import {getNanoId} from "../../../helpers/globalHelpler.ts";
 import DeviceManager from "../../core/DeviceManager.ts";
 import {BaseDestructiveResourceNeeds} from "../BaseResourceNeeds.ts";
-import {DestructiveTrackedResource} from "../../core/tracking/destructiveTrackedResources.ts";
+import type GPURawBindgroup from "../bindgroup/GPURawBindgroup.ts";
+import TextureTracker from "../../core/tracking/textureTracker/TextureTracker.ts";
+
+export type TextureChild = GPURawBindgroup;
 
 export class GPURawTexture extends BaseDestructiveResourceNeeds {
     protected nanoID!: string;
-    private destroyStatus: boolean = false;
-    private gpuTexture!: GPUTexture;
+
     protected mipmapCount!: number;
     private usage!: number;
     protected depthOrArrayLayers: number = 0;
@@ -18,7 +20,17 @@ export class GPURawTexture extends BaseDestructiveResourceNeeds {
     private label: string;
     private isTextureArray: boolean;
     private sampleType: GPUTextureSampleType
-    protected tracker: DestructiveTrackedResource;
+    protected tracker: TextureTracker;
+    private graph: TextureGraph = {
+        parents: null,
+        children: new Set()
+    }
+    needsUpdate = false;
+    isBuilt: boolean = true;
+
+    rebuild() {
+
+    }
 
 
     constructor({
@@ -33,7 +45,6 @@ export class GPURawTexture extends BaseDestructiveResourceNeeds {
                     isAutoDestroy
                 }: GPUTextureRawEntries) {
         super();
-        this.tracker = new DestructiveTrackedResource(this, isAutoDestroy ?? true);
         this.width = width;
         this.height = height;
         this.format = format;
@@ -45,12 +56,19 @@ export class GPURawTexture extends BaseDestructiveResourceNeeds {
         this.nanoID = getNanoId();
         this.isTextureArray = depthOrArrayLayers > 1;
         this.sampleType = this.getSampleTypeForFormat(this.format);
-
-        this.createTexture()
+        this.tracker = new TextureTracker(this.createTexture(), isAutoDestroy ?? true);
     }
 
-    getTracker(): DestructiveTrackedResource {
+    getGraph() {
+        return this.graph;
+    }
+
+    getTracker(): TextureTracker {
         return this.tracker;
+    }
+
+    addChild(child: TextureChild) {
+        this.graph.children.add(child);
     }
 
     private getSampleTypeForFormat(format: GPUTextureFormat): GPUTextureSampleType {
@@ -78,8 +96,7 @@ export class GPURawTexture extends BaseDestructiveResourceNeeds {
     protected createTexture() {
         const device = DeviceManager.instance.device
 
-        this.destroyStatus = false;
-        this.gpuTexture = device.createTexture({
+        return device.createTexture({
             format: this.format,
             label: this.label,
             usage: this.usage,
@@ -115,10 +132,6 @@ export class GPURawTexture extends BaseDestructiveResourceNeeds {
         return this.sampleCount;
     }
 
-    getTexture() {
-        return this.gpuTexture;
-    }
-
     getUsage() {
         return this.usage;
     }
@@ -143,22 +156,11 @@ export class GPURawTexture extends BaseDestructiveResourceNeeds {
         return this.format;
     }
 
-    isDestroyed(): boolean {
-        return this.destroyStatus;
-    }
-
     destroy(): void {
-        this.destroyStatus = true;
-        this.gpuTexture.destroy();
-        this.tracker.getDependencies().forEach(dependency => {
-            dependency.removeDependent(this.tracker);
+        this.graph.children.forEach(child => {
+            child.removeParent(this);
         });
-
         console.warn(`texture with nano id ${this.getNanoID()} destroyed`)
     }
 
-    getView(descriptor: GPUTextureViewDescriptor) {
-        if (this.destroyStatus) throw new Error(`Texture is deleted`);
-        return this.gpuTexture.createView(descriptor);
-    }
 }

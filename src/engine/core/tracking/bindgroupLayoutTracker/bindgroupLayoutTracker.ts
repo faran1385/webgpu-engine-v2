@@ -8,7 +8,7 @@ export class BindgroupLayoutTracker extends IndestructiveTrackedResource {
         this.layout = layout;
     }
 
-    getLayout() {
+    getGPUResource() {
         return this.layout;
     }
 }

@@ -1,45 +1,111 @@
 import {getNanoId} from "../../../helpers/globalHelpler.ts";
-import {type GPURawPipelineEntries} from "./pipeline.types.ts";
-import type GPURawPipelineLayout from "./GPURawPipelineLayout.ts";
-import {IndestructiveTrackedResource} from "../../core/tracking/IndestructiveTrackedResources.ts";
-import GPURenderPipelineManager from "./GPURenderPipelineManager.ts";
+import {type GPURawPipelineEntries, type PipelineGraph, type RenderPipelineParent} from "./pipeline.types.ts";
+import type GPURawPipelineLayout from "../pipelineLayout/GPURawPipelineLayout.ts";
 import {BaseIndestructiveResourceNeeds} from "../BaseResourceNeeds.ts";
 import type {PipelineTracker} from "../../core/tracking/pipelineTracker/pipelineTracker.ts";
+import RenderPipelineManager from "./RenderPipelineManager.ts";
+import {getPipelineHash} from "../../../helpers/pipelineHelper.ts";
+import ResourceUpdater from "../../core/resourceUpdater/ResourceUpdater.ts";
 
-export default class GPURawRenderPipeline extends BaseIndestructiveResourceNeeds{
+
+export default class GPURawRenderPipeline extends BaseIndestructiveResourceNeeds {
     protected nanoID!: string;
-    private label?: string;
     protected tracker: PipelineTracker;
-    vertexSetting: GPURawPipelineEntries["vertex"]
+    private label?: string;
+    private vertexSetting: GPURawPipelineEntries["vertex"]
 
-    fragmentSetting: GPURawPipelineEntries["fragment"];
+    private fragmentSetting: GPURawPipelineEntries["fragment"];
 
     private layout: GPURawPipelineLayout
 
-    primitive: GPURawPipelineEntries["primitive"]
-    multiSample: GPURawPipelineEntries["multiSample"]
+    private primitive: GPURawPipelineEntries["primitive"]
+    private multiSample: GPURawPipelineEntries["multiSample"]
 
-    depthStencil?: GPURawPipelineEntries["depthStencil"]
+    private depthStencil?: GPURawPipelineEntries["depthStencil"]
+    private manager: RenderPipelineManager;
+    private graph: PipelineGraph = {
+        parents: new Set<RenderPipelineParent>(),
+        children: null
+    }
+    needsUpdate: boolean = false;
+    isBuilt: boolean = true;
+
+    private updateTo: null | {
+        label?: string;
+        vertexSetting: GPURawPipelineEntries["vertex"]
+        fragmentSetting: GPURawPipelineEntries["fragment"];
+        primitive: GPURawPipelineEntries["primitive"]
+        multiSample: GPURawPipelineEntries["multiSample"]
+        depthStencil?: GPURawPipelineEntries["depthStencil"]
+    } = null
 
     constructor(T: GPURawPipelineEntries) {
         super();
+        this.manager = RenderPipelineManager.init();
         this.layout = T.layout;
         this.nanoID = getNanoId();
-        this.label=T.pipelineLabel;
+        this.label = T.pipelineLabel;
         this.tracker = T.tracker;
-        this.vertexSetting=T.vertex;
-        this.fragmentSetting=T.fragment;
-        this.layout=T.layout;
-        this.primitive=T.primitive;
-        this.multiSample=T.multiSample;
-        this.depthStencil=T.depthStencil;
+        this.vertexSetting = T.vertex;
+        this.fragmentSetting = T.fragment;
+        this.layout = T.layout;
+        this.primitive = T.primitive;
+        this.multiSample = T.multiSample;
+        this.depthStencil = T.depthStencil;
+    }
+
+    private applyUpdates() {
+        this.primitive = this.updateTo?.primitive! ?? this.primitive;
+        this.fragmentSetting = this.updateTo?.fragmentSetting! ?? this.fragmentSetting;
+        this.vertexSetting = this.updateTo?.vertexSetting! ?? this.vertexSetting;
+        this.depthStencil = this.updateTo?.depthStencil! ?? this.depthStencil;
+        this.multiSample = this.updateTo?.multiSample! ?? this.multiSample;
+        this.label = this.updateTo?.label;
+
+        this.updateTo = null;
+        this.isBuilt = true;
+        this.needsUpdate = false;
+    }
+
+    rebuild() {
+        const hash = getPipelineHash({
+            fragment: this.updateTo?.fragmentSetting ?? this.fragmentSetting,
+            multiSample: this.updateTo?.multiSample ?? this.multiSample,
+            primitive: this.updateTo?.primitive ?? this.primitive,
+            depthStencil: this.updateTo?.depthStencil ?? this.depthStencil,
+            vertex: this.updateTo?.vertexSetting ?? this.vertexSetting,
+        }, this.layout.getTracker().getHash());
+        ResourceUpdater.init().addToIndestructiveDeleteQueue(this,this.getTracker().getHash());
+        this.manager.removeResource(this.tracker.getHash(), this.nanoID)
+        this.tracker = this.manager.createOrGetTracker(hash, this);
+        this.applyUpdates()
+    }
+
+    getManager() {
+        return this.manager
+    }
+
+    getUpdateTo() {
+        return this.updateTo;
+    }
+
+    getLabel() {
+        return this.label;
+    }
+
+    getGraph() {
+        return this.graph;
+    }
+
+    addParent(parent: RenderPipelineParent) {
+        this.graph.parents.add(parent);
     }
 
     getTracker() {
         return this.tracker;
     }
 
-    clone() {
+    clone(layout: GPURawPipelineLayout) {
         return new GPURawRenderPipeline({
             vertex: this.vertexSetting,
             fragment: this.fragmentSetting,
@@ -48,31 +114,11 @@ export default class GPURawRenderPipeline extends BaseIndestructiveResourceNeeds
             tracker: this.tracker,
             primitive: this.primitive,
             depthStencil: this.depthStencil,
-            layout: this.layout
+            layout,
         })
     }
 
     destroyInternal() {
-        const manager = GPURenderPipelineManager.init();
-        manager.removePipeline(this.tracker.getHash(), this.nanoID)
-
-        this.tracker.getDependents().forEach(dependent => {
-            dependent.removeDependency(this.tracker);
-        });
-
-        this.tracker.getDependencies().forEach(dependency => {
-            if (dependency instanceof IndestructiveTrackedResource) dependency.removeDependent(this.tracker);
-        });
-
-        this.label =undefined;
-        this.tracker =undefined as any;
-        this.vertexSetting =undefined as any;
-        this.fragmentSetting =undefined;
-        this.primitive =undefined;
-        this.multiSample =undefined;
-        this.depthStencil =undefined;
-        this.layout =undefined as any;
-        console.warn(`pipeline with nano id ${this.getNanoID()} destroyed`)
     }
 
 

@@ -1,19 +1,23 @@
 import {getNanoId} from "../../../helpers/globalHelpler.ts";
 import DeviceManager from "../../core/DeviceManager.ts";
 
-import type {GPURawBufferEntries} from "./buffer.types.ts";
+import type {BufferChild, BufferGraph, GPURawBufferEntries} from "./buffer.types.ts";
 import {BaseDestructiveResourceNeeds} from "../BaseResourceNeeds.ts";
-import {DestructiveTrackedResource} from "../../core/tracking/destructiveTrackedResources.ts";
+import BufferTracker from "../../core/tracking/bufferTracker/BufferTracker.ts";
+
 
 export default class GPURawBuffer extends BaseDestructiveResourceNeeds {
     protected nanoID!: string;
-    private destroyStatus = false;
-    private gpuBuffer!: GPUBuffer;
     private usage!: number;
     private size!: number;
     private label?: string;
-    protected tracker: DestructiveTrackedResource;
-
+    protected tracker: BufferTracker;
+    private graph: BufferGraph = {
+        parents: null,
+        children: new Set()
+    }
+    needsUpdate: boolean = false;
+    isBuilt: boolean = true;
 
     constructor(T: GPURawBufferEntries) {
         super();
@@ -22,26 +26,23 @@ export default class GPURawBuffer extends BaseDestructiveResourceNeeds {
         this.size = T.size;
         this.label = T.label;
         this.nanoID = getNanoId();
-        this.tracker = new DestructiveTrackedResource(this, T.isAutoDestroy ?? true);
-
-        this.gpuBuffer = device.createBuffer({
+        this.tracker = new BufferTracker(device.createBuffer({
             size: this.size,
             usage: this.usage,
             label: this.label,
-        });
+        }), T.isAutoDestroy ?? true);
+    }
+
+    rebuild() {
+
+    }
+
+    getGraph() {
+        return this.graph;
     }
 
     getTracker() {
         return this.tracker;
-    }
-
-    private createGPUBuffer(device: GPUDevice) {
-        this.destroyStatus = false;
-        this.gpuBuffer = device.createBuffer({
-            size: this.size,
-            usage: this.usage,
-            label: this.label,
-        });
     }
 
     getNanoID(): string {
@@ -71,15 +72,14 @@ export default class GPURawBuffer extends BaseDestructiveResourceNeeds {
     }
 
 
-    isDestroyed(): boolean {
-        return this.destroyStatus;
+
+    addChild(child: BufferChild) {
+        this.graph.children.add(child);
     }
 
     destroy(): void {
-        this.destroyStatus = true;
-        this.gpuBuffer.destroy();
-        this.tracker.getDependencies().forEach(dependency => {
-            dependency.removeDependent(this.tracker);
+        this.graph.children.forEach(child => {
+            child.removeParent(this);
         });
         console.warn(`buffer with nano id ${this.getNanoID()} destroyed`)
     }
@@ -92,12 +92,4 @@ export default class GPURawBuffer extends BaseDestructiveResourceNeeds {
         return this.size;
     }
 
-    getGPUBuffer() {
-        return this.gpuBuffer;
-    }
-
-    resizeBuffer(newSize: number, device: GPUDevice) {
-        this.size = newSize;
-        this.createGPUBuffer(device)
-    }
 }

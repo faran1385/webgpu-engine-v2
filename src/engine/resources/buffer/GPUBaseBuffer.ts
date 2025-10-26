@@ -15,7 +15,7 @@ export default class GPUBaseBuffer extends GPURawBuffer {
     private fillWithData(typedArray: TypedArray) {
         const device=DeviceManager.instance.device
 
-        device.queue.writeBuffer(this.getGPUBuffer(), 0, typedArray);
+        device.queue.writeBuffer(this.getTracker().getGPUResource(), 0, typedArray);
     }
 
 
@@ -23,7 +23,7 @@ export default class GPUBaseBuffer extends GPURawBuffer {
         const device=DeviceManager.instance.device
 
         if (this.getSize() === T.data.byteLength) {
-            device.queue.writeBuffer(this.getGPUBuffer(), T.bufferOffset, T.data, T.dataOffset, T.size);
+            device.queue.writeBuffer(this.getTracker().getGPUResource(), T.bufferOffset, T.data, T.dataOffset, T.size);
 
             return true;
         }

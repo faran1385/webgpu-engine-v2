@@ -1,6 +1,6 @@
 import {Blending, type ManagerCreateEntries} from "../engine/resources/pipeline/pipeline.types.ts";
 import {fnv1aHash} from "./globalHelpler.ts";
-import GPURawPipelineLayout from "../engine/resources/pipeline/GPURawPipelineLayout.ts";
+import GPURawPipelineLayout from "../engine/resources/pipelineLayout/GPURawPipelineLayout.ts";
 
 export function getPipelineHash(T: {
     fragment?: ManagerCreateEntries["fragment"],
@@ -159,9 +159,19 @@ export function getBlendState(mode: Blending): GPUBlendState | undefined {
     }
 }
 
-export function getPipelineDescriptor(T: ManagerCreateEntries, layout: GPURawPipelineLayout): GPURenderPipelineDescriptor {
+
+export type pipelineDescriptor = {
+    pipelineLabel?: ManagerCreateEntries["pipelineLabel"],
+    vertex: ManagerCreateEntries["vertex"],
+    fragment?: ManagerCreateEntries["fragment"],
+    depthStencil?: GPUDepthStencilState,
+    primitive?: GPUPrimitiveState,
+    multiSample?: GPUMultisampleState
+}
+
+export function getPipelineDescriptor(T: pipelineDescriptor, layout: GPURawPipelineLayout): GPURenderPipelineDescriptor {
     const vertexSetting = {
-        module: T.vertex.module.getTracker().getShaderModule(),
+        module: T.vertex.module.getTracker().getGPUResource(),
         entryPoint: T.vertex.entryPoint,
         buffers: T.vertex.buffers.map((buffer) => buffer.getLayout()),
         constants: T.vertex.constants,
@@ -170,7 +180,7 @@ export function getPipelineDescriptor(T: ManagerCreateEntries, layout: GPURawPip
 
     const fragmentSetting = T.fragment ? {
         entryPoint: T.fragment.entryPoint,
-        module: T.fragment.module.getTracker().getShaderModule(),
+        module: T.fragment.module.getTracker().getGPUResource(),
         targets: T.fragment.targets.map((i): (GPUColorTargetState | null | undefined) => {
             if (i) {
                 return {
@@ -241,6 +251,6 @@ export function getPipelineDescriptor(T: ManagerCreateEntries, layout: GPURawPip
         fragment: fragmentSetting,
         primitive,
         multisample: multiSample,
-        layout: layout.getTracker().getPipelineLayout()
+        layout: layout.getTracker().getGPUResource()
     }
 }

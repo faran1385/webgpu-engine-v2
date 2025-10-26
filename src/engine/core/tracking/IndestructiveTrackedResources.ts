@@ -1,52 +1,28 @@
-import type {DestructiveTrackedResource} from "./destructiveTrackedResources.ts";
+import TrackedResource from "./TrackedResource.ts";
+import type BindgroupManager from "../../resources/bindgroup/BindgroupManager.ts";
+import type BindgroupLayoutManager from "../../resources/bindgroupLayout/BindgroupLayoutManager.ts";
+import type PipelineLayoutManager from "../../resources/pipelineLayout/PipelineLayoutManager.ts";
+import type RenderPipelineManager from "../../resources/pipeline/RenderPipelineManager.ts";
+import type SamplerManager from "../../resources/sampler/SamplerManager.ts";
+import type ShaderModuleManager from "../../resources/shaderModule/ShaderModuleManager.ts";
 
-export type TrackedResource = DestructiveTrackedResource | IndestructiveTrackedResource;
+export type Manager =
+    BindgroupManager
+    | BindgroupLayoutManager
+    | PipelineLayoutManager
+    | RenderPipelineManager
+    | SamplerManager
+    | ShaderModuleManager
 
-export class IndestructiveTrackedResource {
+export class IndestructiveTrackedResource extends TrackedResource {
     private hash: string;
-    private dependencies = new Set<TrackedResource>();            // e.g., classes that are using this class or up the chain usages;
-    private dependents = new Set<TrackedResource>(); // e.g., classes that are used by this class or down the chain usages
 
     constructor(hash: string) {
+        super();
         this.hash = hash;
-    }
-
-    copyTracker(hash: string, dependencies: Set<TrackedResource>, dependents: Set<TrackedResource>) {
-        this.hash = hash;
-        this.dependencies = dependencies;
-        this.dependents = dependents;
-    }
-
-
-    getDependents() {
-        return this.dependents;
-    }
-
-    addDependent(dependent: TrackedResource) {
-        this.dependents.add(dependent);
-    }
-
-    removeDependent(dependent: TrackedResource) {
-        this.dependents.delete(dependent);
-    }
-
-    addDependency(dependency: TrackedResource) {
-        this.dependencies.add(dependency);
-    }
-
-    removeDependency(dependency: TrackedResource) {
-        this.dependencies.delete(dependency)
-    }
-
-    getDependencies() {
-        return this.dependencies;
     }
 
     getHash() {
         return this.hash;
-    }
-
-    setHash(hash: string) {
-        this.hash = hash;
     }
 }

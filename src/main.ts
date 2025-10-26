@@ -8,6 +8,7 @@ import SamplerManager from "./engine/resources/sampler/SamplerManager.ts";
 import MaterialManager from "./engine/material/MaterialManager.ts";
 import GeometryManager from "./engine/geometry/GeometryManager.ts";
 import MeshManager from "./engine/mesh/MeshManager.ts";
+import ResourceUpdater from "./engine/core/resourceUpdater/ResourceUpdater.ts";
 
 
 const deviceManager = await DeviceManager.init({});
@@ -23,6 +24,7 @@ const texture = await manager.createTexture(url, {
     label: "TEST",
     format: "rgba8unorm",
 })
+const resourceUpdate = ResourceUpdater.init();
 
 
 const samplerManager = SamplerManager.init()
@@ -114,8 +116,8 @@ const fragmentShader = `
         @location(0) uv:vec2f,
     }
 
-    @group(0) @binding(1) var testTexture:texture_2d<f32>;
-    @group(0) @binding(2) var testSampler:sampler;
+    @group(0) @binding(2) var testTexture:texture_2d<f32>;
+    @group(0) @binding(1) var testSampler:sampler;
 
     @fragment fn fs(in:fsIn)->@location(0) vec4f{
         let data=textureSample(testTexture,testSampler,vec2f(in.uv.x,1. - in.uv.y));
@@ -152,6 +154,8 @@ const material = materialManager.create({
         }
     }
 })
+
+
 const geometryManager = GeometryManager.init()
 
 const geometry = geometryManager.create({
@@ -159,38 +163,108 @@ const geometry = geometryManager.create({
         vertexBuffer,
         uvVertexBuffer
     ],
-    indexBuffer
+    indexBuffer,
 })
+
 const meshManager = MeshManager.init();
 const mesh = meshManager.create({
     geometry,
-    material
+    material,
+    bindgroupLayoutLabel:"test"
 })
 
-mesh.getBindgroup().getLayout().setEntries({
-    uTexture: {
-        resource: texture,
-        visibility: GPUShaderStage.FRAGMENT,
-    },
-    uSampler: {
-        resource: sampler2,
-        visibility: GPUShaderStage.FRAGMENT,
+
+let i=1;
+window.addEventListener("click",()=>{
+    if(!i){
+        mesh.getBindgroup().getLayout().setEntries({
+            modelMatrix: {
+                resource: uniformBuffer,
+                visibility: GPUShaderStage.VERTEX,
+            },
+            uTexture: {
+                resource: texture,
+                visibility: GPUShaderStage.FRAGMENT,
+            },
+            uSampler: {
+                resource: sampler2,
+                visibility: GPUShaderStage.FRAGMENT,
+            }
+        })
+        mesh.getBindgroup().setEntries({
+            modelMatrix: {
+                resource: uniformBuffer,
+                visibility: GPUShaderStage.VERTEX,
+            },
+            uTexture: {
+                resource: texture,
+                visibility: GPUShaderStage.FRAGMENT,
+            },
+            uSampler: {
+                resource: sampler2,
+                visibility: GPUShaderStage.FRAGMENT,
+            }
+        })
+        mesh.getMaterial().getFragment()?.module.setCode(`
+    struct fsIn{
+        @location(0) uv:vec2f,
+    }
+
+    @group(0) @binding(2) var testTexture:texture_2d<f32>;
+    @group(0) @binding(1) var testSampler:sampler;
+
+    @fragment fn fs(in:fsIn)->@location(0) vec4f{
+        let data=textureSample(testTexture,testSampler,vec2f(in.uv.x,1. - in.uv.y));
+        return data;
+    }
+`)
+        i++
+    }else{
+
+        mesh.getBindgroup().getLayout().setEntries({
+            modelMatrix: {
+                resource: uniformBuffer,
+                visibility: GPUShaderStage.VERTEX,
+            },
+        })
+
+        mesh.getBindgroup().setEntries({
+            modelMatrix: {
+                resource: uniformBuffer,
+                visibility: GPUShaderStage.VERTEX,
+            },
+        })
+        mesh.getMaterial().getFragment()?.module.setCode(`
+    struct fsIn{
+        @location(0) uv:vec2f,
+    }
+
+
+    @fragment fn fs(in:fsIn)->@location(0) vec4f{
+        let data=vec4f(1.,1.,0.,1.);
+        return data;
+    }
+`)
+
+        i--
     }
 })
-console.log(mesh.getBindgroup().getLayout())
+
+
+
 const indirectBuffer = device.createBuffer({
     usage: GPUBufferUsage.INDIRECT | GPUBufferUsage.COPY_DST,
     size: 5 * 4,
     label: "indirect texture"
 });
-device.queue.writeBuffer(indirectBuffer, 0, new Uint32Array([
-    indexData.length, // count: 6
-    1,                // instanceCount: 1
-    0,                // firstIndex: 0
-    0,                // baseVertex: 0
-    0,                // firstInstance: 0
-]))
 
+device.queue.writeBuffer(indirectBuffer, 0, new Uint32Array([
+    indexData.length,
+    1,
+    0,
+    0,
+    0,
+]))
 const render = () => {
     const encoder = device.createCommandEncoder();
     const pass = encoder.beginRenderPass({
@@ -203,16 +277,18 @@ const render = () => {
         }]
     });
 
-    pass.setPipeline(mesh.getPipeline().getTracker().getPipeline())
-    pass.setBindGroup(0, mesh.getBindgroup().getTracker().getBindgroup())
+    resourceUpdate.update()
+    pass.setPipeline(mesh.getPipeline().getTracker().getGPUResource())
+    pass.setBindGroup(0, mesh.getBindgroup().getTracker().getGPUResource())
     mesh.getGeometry().getVertexBuffers().forEach((vertexBuffer, i) => {
-        pass.setVertexBuffer(i, vertexBuffer.getGPUBuffer())
+        pass.setVertexBuffer(i, vertexBuffer.getTracker().getGPUResource())
     })
-    pass.setIndexBuffer(mesh.getGeometry().getIndexBuffer()?.getGPUBuffer()!, mesh.getGeometry().getIndexBuffer()!.getFormat())
+    pass.setIndexBuffer(mesh.getGeometry().getIndexBuffer()?.getTracker().getGPUResource()!, mesh.getGeometry().getIndexBuffer()!.getFormat())
     pass.drawIndexedIndirect(indirectBuffer, 0)
 
     pass.end()
     device.queue.submit([encoder.finish()])
     requestAnimationFrame(render)
 }
+
 render()

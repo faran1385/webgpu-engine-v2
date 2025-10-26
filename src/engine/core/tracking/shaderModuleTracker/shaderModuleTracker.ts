@@ -8,7 +8,7 @@ export class ShaderModuleTracker extends IndestructiveTrackedResource {
         this.module = module;
     }
 
-    getShaderModule() {
+    getGPUResource() {
         return this.module;
     }
 }

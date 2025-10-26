@@ -8,7 +8,7 @@ export class PipelineTracker extends IndestructiveTrackedResource {
         this.pipeline = pipeline;
     }
 
-    getPipeline() {
+    getGPUResource() {
         return this.pipeline;
     }
 }

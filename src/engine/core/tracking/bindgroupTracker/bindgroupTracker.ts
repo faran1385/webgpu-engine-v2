@@ -8,7 +8,7 @@ export class BindgroupTracker extends IndestructiveTrackedResource {
         this.bindgroup = bindgroup;
     }
 
-    getBindgroup() {
+    getGPUResource() {
         return this.bindgroup;
     }
 }

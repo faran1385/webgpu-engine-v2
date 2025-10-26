@@ -1,6 +1,6 @@
 import {nanoid} from "nanoid";
 
-export function getNanoId(){
+export function getNanoId() {
     return nanoid(12)
 }
 
@@ -12,3 +12,25 @@ export function fnv1aHash(str: string): string {
     }
     return (h >>> 0).toString(16);
 }
+
+
+export function convertRecordToArray<T>(entries: Record<any, T>) {
+    const ArrayEntries: T[] = []
+    for (const entry in entries) {
+        ArrayEntries.push(entries[entry]);
+    }
+
+    return ArrayEntries;
+}
+
+export function convertRecordKeysToArray<T extends string | number>(entries: Record<T, any>) {
+    const ArrayEntries: T[] = []
+    for (const entry in entries) {
+        ArrayEntries.push(entry);
+    }
+
+    return ArrayEntries;
+}
+
+
+

@@ -1,5 +1,5 @@
 import GPURawMesh from "./GPURawMesh.ts";
-import GPURenderPipelineManager from "../resources/pipeline/GPURenderPipelineManager.ts";
+import RenderPipelineManager from "../resources/pipeline/RenderPipelineManager.ts";
 import type {MeshManagerCreateEntries} from "./mesh.types.ts";
 import {fnv1aHash} from "../../helpers/globalHelpler.ts";
 import BindgroupManager from "../resources/bindgroup/BindgroupManager.ts";
@@ -7,11 +7,11 @@ import BindgroupManager from "../resources/bindgroup/BindgroupManager.ts";
 export default class MeshManager {
     private static instance: MeshManager;
     private cache: Map<string, GPURawMesh> = new Map();
-    private pipelineManager: GPURenderPipelineManager;
+    private pipelineManager: RenderPipelineManager;
     private bindgroupManager: BindgroupManager;
 
     private constructor() {
-        this.pipelineManager = GPURenderPipelineManager.init();
+        this.pipelineManager = RenderPipelineManager.init();
         this.bindgroupManager = BindgroupManager.init();
     }
 
@@ -38,9 +38,10 @@ export default class MeshManager {
             bindgroupLabel: T.bindgroupLabel,
             resources: T.material.getResources(),
         })
+
         T.geometry.getVertexBuffers().forEach((vertexBuffer) => {
-            vertexBuffer.getTracker().addDependency(bindgroup.getTracker())
-            bindgroup.getTracker().addDependent(vertexBuffer.getTracker())
+            vertexBuffer.addChild(bindgroup)
+            bindgroup.addParent(vertexBuffer)
         })
 
         const pipeline = this.pipelineManager.createPipeline({

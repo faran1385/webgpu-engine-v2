@@ -22,7 +22,7 @@ export default class GPUBaseTextureArray extends GPURawTexture {
     fillWithData(dataArray: Uint8ClampedArray[]) {
         const device=DeviceManager.instance.device
 
-        const texture = this.getTexture();
+        const texture = this.getTracker().getGPUResource();
 
 
         for (let i = 0; i < dataArray.length; i++) {
@@ -57,7 +57,7 @@ export default class GPUBaseTextureArray extends GPURawTexture {
     generateMipmaps() {
         const device=DeviceManager.instance.device
 
-        const texture = this.getTexture();
+        const texture = this.getTracker().getGPUResource();
         const mipLevelCount = texture.mipLevelCount;
         const arrayLayerCount = texture.depthOrArrayLayers;
         const format = texture.format;

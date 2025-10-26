@@ -1,4 +1,5 @@
 import type {TypedArray} from "three";
+import GPURawBindgroup from "../bindgroup/GPURawBindgroup.ts";
 
 
 export type GPURawBufferEntries = {
@@ -27,6 +28,12 @@ export type UpdateDataEntries = {
     bufferOffset: GPUSize64,
     dataOffset?: GPUSize64,
     size?: GPUSize64
+}
+export type BufferChild = GPURawBindgroup;
+
+export type BufferGraph = {
+    parents: null,
+    children: Set<BufferChild>
 }
 
 export type GPUVertexBufferEntries = GPUBufferBaseEntries & {

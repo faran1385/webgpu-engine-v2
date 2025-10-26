@@ -4,8 +4,9 @@ import type GPUBaseTextureArray from "../texture/GPUBaseTextureArray.ts";
 import type GPUBaseTexture from "../texture/GPUBaseTexture.ts";
 import type GPURawBindgroupLayout from "../bindgroupLayout/GPURawBindgroupLayout.ts";
 import type GPURawSampler from "../sampler/GPURawSampler.ts";
-import type {BindgroupLayoutTracker} from "../../core/tracking/bindgroupLayoutTracker/bindgroupLayoutTracker.ts";
 import {BindgroupTracker} from "../../core/tracking/bindgroupTracker/bindgroupTracker.ts";
+import type {GPURawTexture} from "../texture/GPURawTexture.ts";
+import type GPURawBuffer from "../buffer/GPURawBuffer.ts";
 
 export type EntryResource = GPUUniformBuffer | GPUStorageBuffer | GPUBaseTextureArray | GPUBaseTexture | GPURawSampler
 
@@ -24,6 +25,13 @@ export type GPUBindGroupManagerCreateEntries = {
     layoutLabel?: string,
 }
 
+export type BindgroupParent = GPURawBindgroupLayout | GPURawTexture | GPURawBuffer | GPURawSampler;
+
+export type BindgroupGraph = {
+    parents: Set<BindgroupParent>,
+    children: null
+};
+
 export type GPURawBindgroupDescriptor = {
     isCopy: false,
     entries: Iterable<GPUBindGroupEntry>,
@@ -39,18 +47,4 @@ export type GPURawBindgroupDescriptor = {
     label?: string;
     boundResources: Record<string, EntryResource>;
     tracker: BindgroupTracker
-}
-
-export type GPURawBindgroupLayoutDescriptor = {
-    label?: string;
-    isCopy: false,
-    tracker: BindgroupLayoutTracker,
-    entries: GPUBaseBindgroupLayoutEntries["entries"]
-} | {
-    isCopy: true;
-    tracker: BindgroupLayoutTracker,
-    entries: GPUBindGroupLayoutEntry[]
-    totalBindingNumber: number;
-    bindgroupLayoutLabel?: string;
-    entriesWithName: GPUBaseBindgroupLayoutEntries["entries"];
 }

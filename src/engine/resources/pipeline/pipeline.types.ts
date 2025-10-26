@@ -1,8 +1,7 @@
 import type GPURawBindgroupLayout from "../bindgroupLayout/GPURawBindgroupLayout.ts";
-import type GPURawPipelineLayout from "./GPURawPipelineLayout.ts";
+import type GPURawPipelineLayout from "../pipelineLayout/GPURawPipelineLayout.ts";
 import type GPURawShaderModule from "../shaderModule/GPURawShaderModule.ts";
 import type GPUVertexBuffer from "../buffer/GPUVertexBuffer.ts";
-import {PipelineLayoutTracker} from "../../core/tracking/pipelineLayoutTracker/pipelineLayoutTracker.ts";
 import type {PipelineTracker} from "../../core/tracking/pipelineTracker/pipelineTracker.ts";
 
 export enum Blending {
@@ -15,6 +14,13 @@ export enum Blending {
     Darken = 0b00100000,
     Lighten = 0b01000000,
     Subtract = 0b10000000,
+}
+
+export type RenderPipelineParent = GPURawPipelineLayout | GPURawShaderModule;
+
+export type PipelineGraph = {
+    parents: Set<RenderPipelineParent>,
+    children: null
 }
 
 
@@ -43,12 +49,6 @@ export type GPURawPipelineEntries = {
     tracker: PipelineTracker
 }
 
-
-export type GPURawPipelineLayoutEntries = {
-    label?: string
-    bindgroupLayouts: GPURawBindgroupLayout[],
-    tracker: PipelineLayoutTracker
-}
 
 export type ManagerCreateEntries = {
     layoutLabel?: string,
